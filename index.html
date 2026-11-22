@@ -1,0 +1,2358 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AMP ROOM — 락밴드 작곡 & 협업 스튜디오</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Apple SD Gothic Neo', 'Malgun Gothic', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            studio: {
+              bg: '#0b0c0f',
+              panel: '#13151b',
+              card: '#1a1d26',
+              hover: '#222633',
+              border: 'rgba(255,255,255,0.08)',
+              amber: '#f59e0b',
+              crimson: '#ef4444',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background-color: #0b0c0f;
+      color: #f3f4f6;
+      font-family: 'Inter', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      overflow-x: hidden;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0c0f; }
+    ::-webkit-scrollbar-thumb { background: #2a2f3d; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3b4254; }
+
+    /* Waveform bar hover & animation */
+    .waveform-container {
+      position: relative;
+      user-select: none;
+      touch-action: none;
+    }
+    .memo-pin {
+      transform: translate(-50%, -50%);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .memo-pin:hover, .memo-pin.active {
+      transform: translate(-50%, -50%) scale(1.25);
+      z-index: 30;
+    }
+    @keyframes pulse-rec {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(1.12); }
+    }
+    .animate-rec {
+      animation: pulse-rec 1.1s ease-in-out infinite;
+    }
+    .glass-header {
+      background: rgba(11, 12, 15, 0.85);
+      backdrop-filter: blur(12px);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-studio-bg text-gray-100 antialiased">
+
+  <!-- Top Navigation Bar -->
+  <header class="glass-header sticky top-0 z-40 border-b border-white/10">
+    <div class="max-w-[1600px] mx-auto px-3 sm:px-5 h-14 flex items-center justify-between gap-2">
+      <!-- Left: Mobile Menu + Brand -->
+      <div class="flex items-center gap-2.5 min-w-0">
+        <button id="btn-mobile-sidebar" type="button" class="lg:hidden p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition" aria-label="트랙 목록 열기">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
+            <i data-lucide="audio-waveform" class="w-4 h-4 text-black"></i>
+          </div>
+          <div class="truncate">
+            <h1 class="text-sm sm:text-base font-extrabold tracking-tight text-white leading-none">AMP ROOM</h1>
+            <p class="text-[11px] text-gray-400 hidden sm:block mt-0.5">락밴드 작곡 &amp; 협업 워크스페이스</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Sync Status + Profile + Admin Toggle -->
+      <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        <!-- Firebase Connection Status Pill -->
+        <button id="btn-firebase-status" type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-white/5 hover:bg-white/10 border border-white/10 transition" title="Firebase 연결 상태 확인">
+          <span id="sync-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span id="sync-label" class="hidden md:inline text-gray-300">연결 확인중...</span>
+        </button>
+
+        <!-- Member Identity Button -->
+        <button id="btn-profile-modal" type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-studio-card hover:bg-studio-hover border border-white/10 text-gray-200 transition">
+          <i data-lucide="user" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span id="header-member-name" class="max-w-[90px] truncate">기타리스트</span>
+        </button>
+
+        <!-- Admin Mode Toggle -->
+        <button id="btn-admin-toggle" type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition bg-white/5 hover:bg-white/10 border-white/10 text-gray-200">
+          <i id="admin-lock-icon" data-lucide="lock" class="w-3.5 h-3.5"></i>
+          <span id="admin-toggle-text">관리자 모드</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace Layout -->
+  <div class="flex-1 flex max-w-[1600px] w-full mx-auto relative">
+
+    <!-- Mobile Sidebar Backdrop -->
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-black/70 z-40 hidden lg:hidden"></div>
+
+    <!-- Left Sidebar: Tracklist (~11 Songs) -->
+    <aside id="sidebar" class="fixed lg:sticky top-14 left-0 z-50 lg:z-20 w-72 sm:w-80 lg:w-72 xl:w-80 h-[calc(100vh-3.5rem)] bg-studio-panel border-r border-white/10 flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-200">
+      <!-- Sidebar Header -->
+      <div class="p-4 border-b border-white/10 flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400">ALBUM TRACKLIST</h2>
+            <span id="track-count-badge" class="px-1.5 py-0.5 text-[10px] font-mono font-semibold rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">11곡</span>
+          </div>
+          <p class="text-[11px] text-gray-500 mt-0.5">곡을 선택해 청취 및 피드백을 남기세요</p>
+        </div>
+        <button id="btn-close-sidebar" type="button" class="lg:hidden p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10" aria-label="사이드바 닫기">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Admin Add Track Button (Visible in Admin Mode) -->
+      <div id="admin-add-track-wrap" class="hidden p-3 border-b border-white/10 bg-amber-500/5">
+        <button id="btn-open-add-song" type="button" class="w-full py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-lg shadow-amber-500/15">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>새 곡 페이지 추가</span>
+        </button>
+      </div>
+
+      <!-- Track Search Filter -->
+      <div class="px-3 pt-3 pb-2">
+        <div class="relative">
+          <i data-lucide="search" class="w-3.5 h-3.5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input id="track-search-input" type="text" placeholder="트랙 제목, 키(Key) 검색..." class="w-full bg-studio-bg border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-amber-500/60" />
+        </div>
+      </div>
+
+      <!-- Track List Items -->
+      <nav id="track-list" class="flex-1 overflow-y-auto px-2.5 pb-4 space-y-1"></nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-6">
+
+      <!-- Empty State (if all tracks deleted) -->
+      <div id="empty-state" class="hidden py-24 text-center space-y-4">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-studio-card border border-white/10 flex items-center justify-center text-gray-500">
+          <i data-lucide="music" class="w-8 h-8"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">등록된 곡이 없습니다</h3>
+          <p class="text-sm text-gray-400 mt-1">관리자 모드에서 첫 번째 곡 페이지를 추가해보세요.</p>
+        </div>
+      </div>
+
+      <!-- Active Song Workspace -->
+      <div id="song-workspace" class="space-y-6">
+
+        <!-- Song Header & Admin Controls -->
+        <section class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div class="min-w-0 space-y-1.5">
+            <div class="flex flex-wrap items-center gap-2">
+              <span id="song-track-num" class="px-2 py-0.5 rounded bg-white/10 font-mono text-xs font-semibold text-amber-400">TRACK 01</span>
+              <span id="song-status-badge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">편곡 진행중</span>
+              <span id="song-meta-pills" class="text-xs font-mono text-gray-400">138 BPM · E Minor</span>
+            </div>
+            <!-- View Title -->
+            <h2 id="song-title-view" class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white truncate">Midnight Overdrive</h2>
+            <!-- Admin Edit Title & Meta (Hidden in Member Mode) -->
+            <div id="song-title-edit-wrap" class="hidden grid grid-cols-1 sm:grid-cols-12 gap-2 pt-1">
+              <input id="edit-song-title" type="text" placeholder="곡 제목" class="sm:col-span-5 bg-studio-card border border-amber-500/40 rounded-lg px-3 py-1.5 text-sm font-bold text-white focus:outline-none focus:border-amber-400" />
+              <input id="edit-song-bpm" type="text" placeholder="BPM (예: 140)" class="sm:col-span-2 bg-studio-card border border-white/15 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-200 focus:outline-none focus:border-amber-400" />
+              <input id="edit-song-key" type="text" placeholder="Key (예: E Minor)" class="sm:col-span-2 bg-studio-card border border-white/15 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-200 focus:outline-none focus:border-amber-400" />
+              <select id="edit-song-status" class="sm:col-span-3 bg-studio-card border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-amber-400">
+                <option value="초안 데모">초안 데모</option>
+                <option value="편곡 진행중">편곡 진행중</option>
+                <option value="합주 테스트">합주 테스트</option>
+                <option value="녹음 완료">녹음 완료</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Admin Action Buttons -->
+          <div id="admin-song-actions" class="hidden flex flex-wrap items-center gap-2 shrink-0">
+            <button id="btn-save-song" type="button" class="px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center gap-1.5 transition shadow-lg shadow-amber-500/20">
+              <i data-lucide="save" class="w-3.5 h-3.5"></i>
+              <span>변경사항 저장 (실시간 반영)</span>
+            </button>
+            <button id="btn-delete-song" type="button" class="px-3 py-2 rounded-lg bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 font-semibold text-xs flex items-center gap-1.5 transition">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              <span>곡 삭제</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- SECTION 1 & 2: TOP AUDIO PLAYER + TIMELINE MEMO BAR -->
+        <section class="rounded-2xl bg-studio-panel border border-white/10 p-4 sm:p-5 shadow-2xl space-y-4">
+          <!-- Admin Audio Upload Dropzone (Visible in Admin Mode) -->
+          <div id="admin-audio-upload-box" class="hidden rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-10 h-10 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0">
+                <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-bold text-amber-300">음원 파일 업로드 / 교체 (관리자 전용)</p>
+                <p id="audio-upload-filename" class="text-[11px] text-gray-400 truncate mt-0.5">MP3, WAV, M4A, OGG 파일을 선택하면 즉시 플레이어에 반영됩니다.</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+              <input id="audio-file-input" type="file" accept="audio/*" class="hidden" />
+              <button id="btn-trigger-audio-upload" type="button" class="w-full sm:w-auto px-3.5 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="file-audio" class="w-3.5 h-3.5 text-amber-400"></i>
+                <span>음원 파일 선택</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Upload Progress Bar -->
+          <div id="audio-upload-progress-wrap" class="hidden space-y-1">
+            <div class="flex justify-between text-[11px] text-amber-300 font-mono">
+              <span>음원 업로드 중...</span>
+              <span id="audio-upload-percent">0%</span>
+            </div>
+            <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div id="audio-upload-bar" class="h-full bg-amber-500 transition-all duration-150" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Hidden Native Audio Element -->
+          <audio id="main-audio" preload="metadata"></audio>
+
+          <!-- Player Controls Row -->
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 sm:gap-3">
+              <!-- Play / Pause -->
+              <button id="btn-play-pause" type="button" class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-black flex items-center justify-center shadow-lg shadow-amber-500/25 transition active:scale-95 shrink-0" aria-label="재생 또는 일시정지">
+                <i id="icon-play" data-lucide="play" class="w-5 h-5 fill-current ml-0.5"></i>
+                <i id="icon-pause" data-lucide="pause" class="w-5 h-5 fill-current hidden"></i>
+              </button>
+
+              <!-- Skip -5s / +5s -->
+              <div class="flex items-center gap-1">
+                <button id="btn-skip-back" type="button" class="p-2 rounded-lg bg-studio-card hover:bg-studio-hover text-gray-300 hover:text-white transition" title="5초 뒤로">
+                  <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                </button>
+                <button id="btn-skip-fwd" type="button" class="p-2 rounded-lg bg-studio-card hover:bg-studio-hover text-gray-300 hover:text-white transition" title="5초 앞으로">
+                  <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                </button>
+              </div>
+
+              <!-- Time Display -->
+              <div class="px-3 py-1.5 rounded-lg bg-studio-bg border border-white/10 font-mono text-xs sm:text-sm flex items-center gap-1.5">
+                <span id="time-current" class="text-amber-400 font-semibold">00:00</span>
+                <span class="text-gray-600">/</span>
+                <span id="time-duration" class="text-gray-400">00:00</span>
+              </div>
+
+              <!-- Audio Source Badge -->
+              <span id="audio-source-badge" class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-white/5 text-gray-400 border border-white/5">
+                <i data-lucide="disc-3" class="w-3 h-3 text-amber-400"></i>
+                <span id="audio-source-text">스튜디오 데모 음원</span>
+              </span>
+            </div>
+
+            <!-- Secondary Controls: Speed, Loop, Volume, Add Memo CTA -->
+            <div class="flex flex-wrap items-center gap-2">
+              <button id="btn-speed" type="button" class="px-2.5 py-1.5 rounded-lg bg-studio-card hover:bg-studio-hover border border-white/10 font-mono text-xs text-gray-300 transition" title="재생 속도 변경">1.0x</button>
+              <button id="btn-loop" type="button" class="p-2 rounded-lg bg-studio-card hover:bg-studio-hover border border-white/10 text-gray-400 hover:text-white transition" title="반복 재생">
+                <i data-lucide="repeat" class="w-4 h-4"></i>
+              </button>
+              <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-studio-card border border-white/10">
+                <i data-lucide="volume-2" class="w-3.5 h-3.5 text-gray-400"></i>
+                <input id="volume-slider" type="range" min="0" max="1" step="0.05" value="0.85" class="w-16 accent-amber-500 cursor-pointer" aria-label="볼륨 조절" />
+              </div>
+
+              <!-- Add Timestamp Memo at Current Position -->
+              <button id="btn-open-memo-composer" type="button" class="px-3 py-2 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300 hover:text-red-200 text-xs font-bold flex items-center gap-1.5 transition">
+                <i data-lucide="map-pin-plus" class="w-3.5 h-3.5"></i>
+                <span>현재 위치(<span id="btn-memo-time-preview" class="font-mono">00:00</span>) 메모 남기기</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Interactive Waveform & Timeline Scrubber with Memo Pins -->
+          <div class="pt-3 pb-1">
+            <div class="flex items-center justify-between text-[11px] text-gray-400 mb-1.5">
+              <span>타임라인을 클릭해 원하는 구간으로 이동하거나 핀을 클릭해 메모를 확인하세요</span>
+              <div class="flex items-center gap-3">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span> 글 메모</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span> 음성 메모</span>
+              </div>
+            </div>
+
+            <div id="waveform-track" class="waveform-container h-20 sm:h-24 rounded-xl bg-studio-bg border border-white/10 px-2 py-2 flex items-center cursor-pointer overflow-visible">
+              <!-- Canvas Waveform -->
+              <canvas id="waveform-canvas" class="w-full h-full block"></canvas>
+
+              <!-- Playhead Line -->
+              <div id="playhead-line" class="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] z-10" style="left: 0%"></div>
+
+              <!-- Hover Time Tooltip -->
+              <div id="hover-tooltip" class="pointer-events-none hidden absolute -top-7 px-2 py-0.5 rounded bg-gray-900 border border-white/20 font-mono text-[10px] text-white shadow-lg z-30 -translate-x-1/2">00:00</div>
+
+              <!-- Memo Pins Layer -->
+              <div id="memo-pins-layer" class="absolute inset-x-2 bottom-2.5 h-0 z-20"></div>
+            </div>
+          </div>
+
+          <!-- Inline Timestamp Memo Composer (Text & Voice) -->
+          <div id="memo-composer-panel" class="hidden rounded-xl bg-studio-card border border-amber-500/35 p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-xs font-bold" id="composer-timestamp-badge">00:00</span>
+                <h4 class="text-xs font-bold text-white">타임라인 구간 메모 추가</h4>
+              </div>
+              <div class="flex items-center gap-1 bg-studio-bg p-1 rounded-lg border border-white/10">
+                <button id="tab-memo-text" type="button" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-500 text-black transition">글 메모</button>
+                <button id="tab-memo-voice" type="button" class="px-2.5 py-1 rounded-md text-xs font-semibold text-gray-400 hover:text-white transition">음성 메모</button>
+              </div>
+            </div>
+
+            <!-- Category + Timestamp fine-tune -->
+            <div class="flex flex-wrap items-center gap-2">
+              <label class="text-[11px] text-gray-400">카테고리:</label>
+              <select id="memo-category-select" class="bg-studio-bg border border-white/10 rounded-lg px-2.5 py-1 text-xs text-gray-200 focus:outline-none focus:border-amber-500">
+                <option value="편곡/악기">편곡/악기</option>
+                <option value="리듬/드럼">리듬/드럼</option>
+                <option value="멜로디/보컬">멜로디/보컬</option>
+                <option value="믹싱/톤">믹싱/톤</option>
+                <option value="가사 수정">가사 수정</option>
+              </select>
+              <button id="btn-sync-memo-time" type="button" class="text-[11px] text-amber-400 hover:text-amber-300 underline ml-auto">현재 재생 위치로 맞추기</button>
+            </div>
+
+            <!-- Text Memo Input -->
+            <div id="memo-text-area-wrap" class="space-y-2">
+              <textarea id="memo-text-input" rows="2" placeholder="예: 이 구간에서 기타 리프에 디스토션 더 강하게 넣고 드럼 필인 들어가면 좋을 듯!" class="w-full bg-studio-bg border border-white/10 rounded-lg px-3 py-2 text-xs sm:text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-amber-500"></textarea>
+            </div>
+
+            <!-- Voice Memo Recorder -->
+            <div id="memo-voice-area-wrap" class="hidden space-y-3 rounded-lg bg-studio-bg border border-white/10 p-3">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                  <button id="btn-record-toggle" type="button" class="px-3.5 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 transition">
+                    <span id="rec-dot" class="w-2.5 h-2.5 rounded-full bg-white"></span>
+                    <span id="rec-btn-label">녹음 시작</span>
+                  </button>
+                  <span id="rec-timer" class="font-mono text-xs text-gray-300">00:00</span>
+                </div>
+                <span id="rec-status-hint" class="text-[11px] text-gray-400">마이크로 허밍이나 편곡 아이디어를 바로 녹음하세요 (최대 60초)</span>
+              </div>
+
+              <!-- Recorded Audio Preview -->
+              <div id="voice-preview-wrap" class="hidden flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-white/10">
+                <audio id="voice-preview-audio" controls class="w-full h-9"></audio>
+                <button id="btn-clear-voice" type="button" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300 shrink-0">다시 녹음</button>
+              </div>
+
+              <!-- Optional short note with voice memo -->
+              <input id="voice-memo-caption" type="text" placeholder="음성 메모 한 줄 제목 (선택, 예: 브릿지 기타 솔로 허밍)" class="w-full bg-studio-card border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-rose-500" />
+            </div>
+
+            <!-- Composer Actions -->
+            <div class="flex items-center justify-end gap-2 pt-1">
+              <button id="btn-cancel-memo" type="button" class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300 transition">취소</button>
+              <button id="btn-submit-memo" type="button" class="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center gap-1.5 transition">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                <span>타임라인에 메모 등록</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Timestamped Memos List -->
+          <div class="pt-2 border-t border-white/10 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                <i data-lucide="pin" class="w-3.5 h-3.5 text-amber-400"></i>
+                <span>타임라인 구간 메모</span>
+                <span id="timeline-memo-count" class="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-gray-300">0</span>
+              </h3>
+              <div class="flex items-center gap-1.5 text-[11px]">
+                <button data-memo-filter="all" class="memo-filter-btn px-2 py-0.5 rounded bg-white/10 text-white font-medium">전체</button>
+                <button data-memo-filter="text" class="memo-filter-btn px-2 py-0.5 rounded text-gray-400 hover:text-white">글</button>
+                <button data-memo-filter="voice" class="memo-filter-btn px-2 py-0.5 rounded text-gray-400 hover:text-white">음성</button>
+              </div>
+            </div>
+            <div id="timeline-memos-list" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+        </section>
+
+        <!-- SECTION 4: SPLIT DESCRIPTION & LYRICS -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <!-- Left Card: Song Description (곡 설명) -->
+          <div class="rounded-2xl bg-studio-panel border border-white/10 p-5 flex flex-col">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+              <div class="flex items-center gap-2">
+                <i data-lucide="file-text" class="w-4 h-4 text-amber-400"></i>
+                <h3 class="text-sm font-bold text-white">곡 설명 &amp; 편곡 디렉션</h3>
+              </div>
+              <span id="desc-edit-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300">편집 가능</span>
+            </div>
+            <!-- View Mode -->
+            <div id="song-desc-view" class="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap flex-1 min-h-[220px]"></div>
+            <!-- Admin Edit Mode -->
+            <textarea id="edit-song-desc" rows="10" placeholder="곡의 콘셉트, 코드 진행, 악기별 디렉션, 레퍼런스 등을 자유롭게 작성하세요..." class="hidden w-full flex-1 min-h-[220px] bg-studio-bg border border-amber-500/40 rounded-xl p-3.5 text-sm text-gray-100 leading-relaxed focus:outline-none focus:border-amber-400 resize-y"></textarea>
+          </div>
+
+          <!-- Right Card: Lyrics (가사) -->
+          <div class="rounded-2xl bg-studio-panel border border-white/10 p-5 flex flex-col">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+              <div class="flex items-center gap-2">
+                <i data-lucide="mic-2" class="w-4 h-4 text-rose-400"></i>
+                <h3 class="text-sm font-bold text-white">가사 (Lyrics)</h3>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span id="lyrics-edit-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300">편집 가능</span>
+                <button id="btn-copy-lyrics" type="button" class="px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[11px] text-gray-300 flex items-center gap-1 transition">
+                  <i data-lucide="copy" class="w-3 h-3"></i>
+                  <span>복사</span>
+                </button>
+              </div>
+            </div>
+            <!-- View Mode -->
+            <div id="song-lyrics-view" class="text-sm text-gray-200 leading-7 whitespace-pre-wrap flex-1 min-h-[220px] font-sans"></div>
+            <!-- Admin Edit Mode -->
+            <textarea id="edit-song-lyrics" rows="10" placeholder="[Verse 1]&#10;가사를 입력하세요...&#10;&#10;[Chorus]&#10;후렴구 가사..." class="hidden w-full flex-1 min-h-[220px] bg-studio-bg border border-amber-500/40 rounded-xl p-3.5 text-sm text-gray-100 leading-7 focus:outline-none focus:border-amber-400 resize-y"></textarea>
+          </div>
+        </section>
+
+        <!-- SECTION 6: GENERAL SUGGESTIONS & COMMENTS (SEPARATE FROM TIMELINE MEMOS) -->
+        <section class="rounded-2xl bg-studio-panel border border-white/10 p-5 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
+            <div>
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i data-lucide="message-square-plus" class="w-4 h-4 text-sky-400"></i>
+                <span>멤버 종합 제안 &amp; 댓글란</span>
+                <span id="comment-count-badge" class="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 font-mono text-[11px]">0</span>
+              </h3>
+              <p class="text-xs text-gray-400 mt-0.5">재생 바 구간 메모와 별개로 곡 전체의 방향성, 분위기, 합주 아이디어를 자유롭게 제안하세요.</p>
+            </div>
+          </div>
+
+          <!-- New Comment Form -->
+          <form id="comment-form" class="rounded-xl bg-studio-card border border-white/10 p-3.5 space-y-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs text-gray-400">작성자:</span>
+              <span id="comment-author-preview" class="text-xs font-bold text-amber-400">기타리스트</span>
+              <select id="comment-tag-select" class="ml-auto bg-studio-bg border border-white/10 rounded-lg px-2.5 py-1 text-xs text-gray-200 focus:outline-none focus:border-sky-400">
+                <option value="편곡 제안">편곡 제안</option>
+                <option value="일반 의견">일반 의견</option>
+                <option value="수정 요청">수정 요청</option>
+                <option value="합주 아이디어">합주 아이디어</option>
+                <option value="칭찬/좋아요">칭찬/좋아요</option>
+              </select>
+            </div>
+            <textarea id="comment-input" rows="2" placeholder="곡 전체에 대한 피드백이나 아이디어를 남겨주세요..." class="w-full bg-studio-bg border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-sky-400"></textarea>
+            <div class="flex justify-end">
+              <button type="submit" class="px-4 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-black font-bold text-xs flex items-center gap-1.5 transition">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                <span>제안 등록</span>
+              </button>
+            </div>
+          </form>
+
+          <!-- Comments Feed -->
+          <div id="comments-list" class="space-y-2.5"></div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- 1. Admin Login Modal -->
+  <div id="modal-admin-login" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 p-4">
+    <div class="w-full max-w-sm rounded-2xl bg-studio-panel border border-white/15 p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-5 h-5 text-amber-400"></i>
+          <span>관리자 모드 인증</span>
+        </h3>
+        <button data-close-modal="modal-admin-login" type="button" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <p class="text-xs text-gray-400 leading-relaxed">관리자 모드에서는 음원 업로드, 곡 설명/가사 실시간 수정, 곡 페이지 추가 및 삭제가 가능합니다.</p>
+      <form id="form-admin-login" class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">관리자 비밀번호 (초기 PIN: <span class="font-mono text-amber-400">1234</span>)</label>
+          <input id="admin-pin-input" type="password" placeholder="비밀번호 입력" class="w-full bg-studio-bg border border-white/15 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500" />
+          <p id="admin-pin-error" class="hidden text-xs text-red-400 mt-1">비밀번호가 일치하지 않습니다.</p>
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button data-close-modal="modal-admin-login" type="button" class="px-3.5 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300">취소</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs">관리자 입장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Member Profile Modal -->
+  <div id="modal-profile" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 p-4">
+    <div class="w-full max-w-sm rounded-2xl bg-studio-panel border border-white/15 p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="users" class="w-5 h-5 text-amber-400"></i>
+          <span>밴드 멤버 프로필 설정</span>
+        </h3>
+        <button data-close-modal="modal-profile" type="button" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <form id="form-profile" class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">닉네임</label>
+          <input id="profile-name-input" type="text" required placeholder="예: 민수" class="w-full bg-studio-bg border border-white/15 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">담당 파트</label>
+          <select id="profile-role-input" class="w-full bg-studio-bg border border-white/15 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+            <option value="보컬">보컬 (Vocal)</option>
+            <option value="기타">기타 (Guitar)</option>
+            <option value="베이스">베이스 (Bass)</option>
+            <option value="드럼">드럼 (Drums)</option>
+            <option value="건반">건반 (Keys)</option>
+            <option value="작곡/프로듀서">작곡/프로듀서</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button data-close-modal="modal-profile" type="button" class="px-3.5 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300">취소</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. Add New Song Modal (Admin) -->
+  <div id="modal-add-song" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 p-4">
+    <div class="w-full max-w-md rounded-2xl bg-studio-panel border border-white/15 p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="music-2" class="w-5 h-5 text-amber-400"></i>
+          <span>새 곡 페이지 추가</span>
+        </h3>
+        <button data-close-modal="modal-add-song" type="button" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <form id="form-add-song" class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">곡 제목 *</label>
+          <input id="new-song-title" type="text" required placeholder="예: Neon Highway" class="w-full bg-studio-bg border border-white/15 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-300 mb-1">BPM</label>
+            <input id="new-song-bpm" type="text" value="130" class="w-full bg-studio-bg border border-white/15 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-amber-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-300 mb-1">Key</label>
+            <input id="new-song-key" type="text" value="A Minor" class="w-full bg-studio-bg border border-white/15 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-amber-500" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">진행 상태</label>
+          <select id="new-song-status" class="w-full bg-studio-bg border border-white/15 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+            <option value="초안 데모">초안 데모</option>
+            <option value="편곡 진행중">편곡 진행중</option>
+            <option value="합주 테스트">합주 테스트</option>
+            <option value="녹음 완료">녹음 완료</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">곡 설명 (선택)</label>
+          <textarea id="new-song-desc" rows="2" placeholder="초기 아이디어, 리프 분위기 등..." class="w-full bg-studio-bg border border-white/15 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button data-close-modal="modal-add-song" type="button" class="px-3.5 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300">취소</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs">곡 페이지 생성</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. Delete Song Confirmation Modal -->
+  <div id="modal-delete-song" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 p-4">
+    <div class="w-full max-w-sm rounded-2xl bg-studio-panel border border-red-500/30 p-5 shadow-2xl space-y-4">
+      <div class="flex items-center gap-2 text-red-400">
+        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+        <h3 class="text-base font-bold">곡 페이지 삭제</h3>
+      </div>
+      <p class="text-xs text-gray-300 leading-relaxed">
+        <strong id="delete-song-target-name" class="text-white"></strong> 페이지를 삭제하시겠습니까? 해당 곡의 타임라인 메모와 댓글도 함께 삭제됩니다.
+      </p>
+      <div class="flex justify-end gap-2">
+        <button data-close-modal="modal-delete-song" type="button" class="px-3.5 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300">취소</button>
+        <button id="btn-confirm-delete-song" type="button" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs">삭제하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Firebase Status & Rules Helper Modal -->
+  <div id="modal-firebase-info" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 p-4">
+    <div class="w-full max-w-lg rounded-2xl bg-studio-panel border border-white/15 p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="flame" class="w-5 h-5 text-amber-400"></i>
+          <span>Firebase 연결 상태 (invite-c47f6)</span>
+        </h3>
+        <button data-close-modal="modal-firebase-info" type="button" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div id="firebase-status-detail" class="p-3 rounded-xl bg-studio-bg border border-white/10 text-xs text-gray-300 space-y-1"></div>
+      <div class="space-y-2">
+        <p class="text-xs text-gray-400 leading-relaxed">
+          제공해주신 <span class="font-mono text-amber-400">invite-c47f6</span> 프로젝트 설정이 코드에 적용되어 있습니다. 밴드 멤버들과 실시간으로 음원·설명·메모를 공유하려면 Firebase 콘솔에서 <strong>Firestore Database</strong>와 <strong>Storage</strong>를 활성화하고 아래 규칙을 적용하세요.
+        </p>
+        <div class="rounded-lg bg-studio-bg border border-white/10 p-3 font-mono text-[11px] text-gray-300 overflow-x-auto">
+          <div class="text-amber-400 mb-1">// Firestore &amp; Storage 테스트/밴드 공유 규칙</div>
+          <pre>rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /band_songs/{document=**} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+        </div>
+      </div>
+      <div class="flex justify-end">
+        <button data-close-modal="modal-firebase-info" type="button" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-semibold text-white">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Main Application Script (Instant Boot + Dynamic Firebase v10 SDK) -->
+  <script>
+    (function () {
+    let fbFirestoreMod = null;
+    let fbStorageMod = null;
+
+    // =========================================================
+    // 1. FIREBASE CONFIGURATION (User Provided)
+    // =========================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyDZFV6AZJmrGfw2nuMVNgX7bpMUIKbkhi0",
+      authDomain: "invite-c47f6.firebaseapp.com",
+      projectId: "invite-c47f6",
+      storageBucket: "invite-c47f6.firebasestorage.app",
+      messagingSenderId: "621082854218",
+      appId: "1:621082854218:web:ab88fe7ebc34345e8bb7b3",
+      measurementId: "G-6FRQTRJMDW"
+    };
+
+    let fbApp = null;
+    let db = null;
+    let storage = null;
+    let firebaseConnected = false;
+    let firebaseErrorMsg = "";
+
+    // =========================================================
+    // 2. INITIAL 11-TRACK SEED DATA (Rock Band Album)
+    // =========================================================
+    const DEFAULT_SONGS = [
+      {
+        id: "track-01",
+        order: 1,
+        title: "Midnight Overdrive",
+        bpm: "142",
+        key: "E Minor",
+        status: "편곡 진행중",
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 82.41, // E2
+        description: "앨범의 포문을 여는 업템포 하드 록 트랙입니다.\n\n[악기 디렉션]\n- 인트로 4마디는 팜 뮤트(Palm Mute) 기타 리프로 텐션을 끌어올리고 5마디에서 드럼 크래시와 함께 폭발.\n- 베이스는 8분음표 피킹으로 킥 드럼에 타이트하게 붙여주세요.\n- 브릿지(00:14 부근)에서 드럼 하프타임 전환 테스트 필요.",
+        lyrics: "[Verse 1]\n네온 불빛 아래 엔진 소리가 울려\n식어버린 아스팔트 위를 가르며 달려\n오늘 밤은 브레이크를 밟지 마\n우리의 소리가 도시를 깨울 때까지\n\n[Chorus]\nMidnight Overdrive! 더 크게 볼륨을 올려\n심장이 터질 듯한 이 리듬에 몸을 맡겨\n끝없는 밤을 찢어놓는 우리의 멜로디\n지금 이 순간 멈추지 마",
+        memos: [
+          {
+            id: "m-101",
+            time: 4.5,
+            type: "text",
+            category: "편곡/악기",
+            author: "기타리스트",
+            role: "기타",
+            text: "여기 4초 부근에서 세컨드 기타 옥타브 리프 들어오면 훨씬 풍성할 것 같아요.",
+            createdAt: Date.now() - 86400000
+          },
+          {
+            id: "m-102",
+            time: 12.0,
+            type: "text",
+            category: "리듬/드럼",
+            author: "드러머",
+            role: "드럼",
+            text: "코러스 직전 탐탐 필인 2박자만 넣고 바로 라이드 심벌로 넘어갈게요!",
+            createdAt: Date.now() - 43200000
+          }
+        ],
+        comments: [
+          {
+            id: "c-101",
+            author: "베이시스트",
+            role: "베이스",
+            tag: "편곡 제안",
+            text: "전체적으로 에너지가 엄청 좋습니다! 이번 주 토요일 합주 때 브릿지 구간 하프타임이랑 원템포 둘 다 맞춰봅시다.",
+            likes: 3,
+            createdAt: Date.now() - 72000000
+          }
+        ]
+      },
+      {
+        id: "track-02",
+        order: 2,
+        title: "Rust & Static",
+        bpm: "126",
+        key: "D Minor",
+        status: "합주 테스트",
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 73.42, // D2
+        description: "거친 퍼즈(Fuzz) 톤이 중심이 되는 그런지/얼터너티브 록 넘버.\n드롭 D 튜닝 기준이며, 후렴에서 보컬 스크리밍과 코러스 하모니를 겹칠 예정입니다.",
+        lyrics: "[Verse 1]\n녹슨 앰프 위로 흐르는 노이즈\n지워지지 않는 어제의 잔상들\n\n[Chorus]\nRust and static in my veins\n소리쳐 봐도 닿지 않는 메아리",
+        memos: [],
+        comments: []
+      },
+      {
+        id: "track-03",
+        order: 3,
+        title: "Glass Horizon",
+        bpm: "112",
+        key: "G Major",
+        status: "초안 데모",
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 98.00, // G2
+        description: "클린 딜레이 아르페지오로 시작해 후반부 슈게이징 월 오브 사운드로 터지는 모던 록 트랙.",
+        lyrics: "[Verse 1]\n투명한 지평선 너머로\n부서지는 파도 소리가 들려와\n\n[Chorus]\n유리처럼 맑은 새벽 공기 속에\n우리의 노래를 띄워 보내",
+        memos: [],
+        comments: []
+      },
+      {
+        id: "track-04",
+        order: 4,
+        title: "Concrete Pulse",
+        bpm: "152",
+        key: "A Minor",
+        status: "편곡 진행중",
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 110.00, // A2
+        description: "펑크 록 성향의 빠른 드라이브 트랙. 라이브 공연 앙코르 곡으로 구상 중.",
+        lyrics: "[Verse 1]\n회색 빌딩 숲 사이로 뛰는 맥박\n규칙 따윈 오늘만 잠시 접어둬",
+        memos: [],
+        comments: []
+      },
+      {
+        id: "track-05",
+        order: 5,
+        title: "Velvet Thunder",
+        bpm: "94",
+        key: "C# Minor",
+        status: "초안 데모",
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 69.30, // C#2
+        description: "무게감 있는 슬로우 블루스 록 발라드. 후반부 16마디 기타 솔로 구간이 핵심.",
+        lyrics: "[Verse 1]\n먹구름이 내려앉은 밤하늘 아래\n낮게 울리는 천둥 소리처럼",
+        memos: [],
+        comments: []
+      },
+      {
+        id: "track-06",
+        order: 6,
+        title: "Neon Wasteland",
+        bpm: "134",
+        key: "F# Minor",
+        status: "녹음 완료",
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 92.50, // F#2
+        description: "신스 베이스와 일렉 기타가 맞물리는 신스 록 트랙. 가이드 보컬 녹음까지 완료된 상태.",
+        lyrics: "[Chorus]\n빛바랜 네온 사인 아래 서서\n우린 다시 길을 찾아 걸어가",
+        memos: [],
+        comments: []
+      },
+      {
+        id: "track-07",
+        order: 7,
+        title: "Paper Crown",
+        bpm: "120",
+        key: "B Minor",
+        status: "편곡 진행중",
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 123.47, // B2
+        description: "미드 템포 브릿팝/인디 록 스타일. 어쿠스틱 기타 레이어링 추가 여부 논의 필요.",
+        lyrics: "[Verse 1]\n종이로 접은 왕관을 쓰고서\n세상을 다 가진 듯 웃던 날들",
+        memos: [],
+        comments: []
+      },
+      {
+        id: "track-08",
+        order: 8,
+        title: "Voltage Drop",
+        bpm: "160",
+        key: "E Minor",
+        status: "초안 데모",
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 82.41,
+        description: "트윈 기타 하모니가 돋보이는 메탈/하드록 인스트루멘탈 기반 트랙.",
+        lyrics: "(가사 초안 작성 중 — 인스트루멘탈 유지 여부 투표 예정)",
+        memos: [],
+        comments: []
+      },
+      {
+        id: "track-09",
+        order: 9,
+        title: "Afterglow 3AM",
+        bpm: "86",
+        key: "D Major",
+        status: "합주 테스트",
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 73.42,
+        description: "새벽 3시 감성의 서정적인 록 발라드. 리버브를 깊게 건 클린 기타와 따뜻한 베이스 라인.",
+        lyrics: "[Verse 1]\n모두가 잠든 새벽 세 시\n창가에 남은 불빛 하나",
+        memos: [],
+        comments: []
+      },
+      {
+        id: "track-10",
+        order: 10,
+        title: "Feedback Loop",
+        bpm: "138",
+        key: "G Minor",
+        status: "초안 데모",
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 98.00,
+        description: "앰프 피드백 사운드를 리듬 요소로 활용한 실험적인 노이즈 록 트랙.",
+        lyrics: "[Chorus]\n끝없이 되돌아오는 울림 속에서\n진짜 내 목소리를 찾아내",
+        memos: [],
+        comments: []
+      },
+      {
+        id: "track-11",
+        order: 11,
+        title: "Last Encore (Outro)",
+        bpm: "105",
+        key: "E Major",
+        status: "편곡 진행중",
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 82.41,
+        description: "앨범의 마지막을 장식하는 대곡 스타일의 앤썸(Anthem) 록. 떼창(Sing-along) 코러스 파트 포함.",
+        lyrics: "[Outro]\n불이 꺼져도 노래는 끝나지 않아\n다시 만날 그날까지 함께 불러줘",
+        memos: [],
+        comments: []
+      }
+    ];
+
+    // =========================================================
+    // 3. APP STATE
+    // =========================================================
+    const STORAGE_KEY = "amp_room_band_songs_v1";
+    const PROFILE_KEY = "amp_room_member_profile_v1";
+    const ADMIN_PIN = "1234";
+
+    let state = {
+      songs: [],
+      activeSongId: null,
+      isAdmin: false,
+      searchQuery: "",
+      memoFilter: "all",
+      composerType: "text", // 'text' | 'voice'
+      composerTime: 0,
+      member: { name: "기타리스트", role: "기타" },
+      playbackRate: 1.0,
+      isLooping: false,
+      waveformBars: [],
+      synthBlobUrls: {}, // cache synthesized demo WAV URLs per song id
+      mediaRecorder: null,
+      recordedChunks: [],
+      recordedVoiceDataUrl: null,
+      recordedVoiceDuration: 0,
+      recInterval: null,
+      recStartTime: 0,
+      isRecording: false
+    };
+
+    // =========================================================
+    // 4. DOM ELEMENTS
+    // =========================================================
+    const el = {
+      sidebar: document.getElementById("sidebar"),
+      sidebarBackdrop: document.getElementById("sidebar-backdrop"),
+      btnMobileSidebar: document.getElementById("btn-mobile-sidebar"),
+      btnCloseSidebar: document.getElementById("btn-close-sidebar"),
+      trackList: document.getElementById("track-list"),
+      trackCountBadge: document.getElementById("track-count-badge"),
+      trackSearchInput: document.getElementById("track-search-input"),
+      adminAddTrackWrap: document.getElementById("admin-add-track-wrap"),
+      btnOpenAddSong: document.getElementById("btn-open-add-song"),
+
+      syncDot: document.getElementById("sync-dot"),
+      syncLabel: document.getElementById("sync-label"),
+      btnFirebaseStatus: document.getElementById("btn-firebase-status"),
+      firebaseStatusDetail: document.getElementById("firebase-status-detail"),
+
+      btnProfileModal: document.getElementById("btn-profile-modal"),
+      headerMemberName: document.getElementById("header-member-name"),
+      commentAuthorPreview: document.getElementById("comment-author-preview"),
+
+      btnAdminToggle: document.getElementById("btn-admin-toggle"),
+      adminToggleText: document.getElementById("admin-toggle-text"),
+      adminLockIcon: document.getElementById("admin-lock-icon"),
+
+      emptyState: document.getElementById("empty-state"),
+      songWorkspace: document.getElementById("song-workspace"),
+
+      songTrackNum: document.getElementById("song-track-num"),
+      songStatusBadge: document.getElementById("song-status-badge"),
+      songMetaPills: document.getElementById("song-meta-pills"),
+      songTitleView: document.getElementById("song-title-view"),
+      songTitleEditWrap: document.getElementById("song-title-edit-wrap"),
+      editSongTitle: document.getElementById("edit-song-title"),
+      editSongBpm: document.getElementById("edit-song-bpm"),
+      editSongKey: document.getElementById("edit-song-key"),
+      editSongStatus: document.getElementById("edit-song-status"),
+      adminSongActions: document.getElementById("admin-song-actions"),
+      btnSaveSong: document.getElementById("btn-save-song"),
+      btnDeleteSong: document.getElementById("btn-delete-song"),
+
+      adminAudioUploadBox: document.getElementById("admin-audio-upload-box"),
+      audioFileInput: document.getElementById("audio-file-input"),
+      btnTriggerAudioUpload: document.getElementById("btn-trigger-audio-upload"),
+      audioUploadFilename: document.getElementById("audio-upload-filename"),
+      audioUploadProgressWrap: document.getElementById("audio-upload-progress-wrap"),
+      audioUploadPercent: document.getElementById("audio-upload-percent"),
+      audioUploadBar: document.getElementById("audio-upload-bar"),
+
+      mainAudio: document.getElementById("main-audio"),
+      btnPlayPause: document.getElementById("btn-play-pause"),
+      iconPlay: document.getElementById("icon-play"),
+      iconPause: document.getElementById("icon-pause"),
+      btnSkipBack: document.getElementById("btn-skip-back"),
+      btnSkipFwd: document.getElementById("btn-skip-fwd"),
+      timeCurrent: document.getElementById("time-current"),
+      timeDuration: document.getElementById("time-duration"),
+      audioSourceBadge: document.getElementById("audio-source-badge"),
+      audioSourceText: document.getElementById("audio-source-text"),
+      btnSpeed: document.getElementById("btn-speed"),
+      btnLoop: document.getElementById("btn-loop"),
+      volumeSlider: document.getElementById("volume-slider"),
+      btnOpenMemoComposer: document.getElementById("btn-open-memo-composer"),
+      btnMemoTimePreview: document.getElementById("btn-memo-time-preview"),
+
+      waveformTrack: document.getElementById("waveform-track"),
+      waveformCanvas: document.getElementById("waveform-canvas"),
+      playheadLine: document.getElementById("playhead-line"),
+      hoverTooltip: document.getElementById("hover-tooltip"),
+      memoPinsLayer: document.getElementById("memo-pins-layer"),
+
+      memoComposerPanel: document.getElementById("memo-composer-panel"),
+      composerTimestampBadge: document.getElementById("composer-timestamp-badge"),
+      tabMemoText: document.getElementById("tab-memo-text"),
+      tabMemoVoice: document.getElementById("tab-memo-voice"),
+      memoCategorySelect: document.getElementById("memo-category-select"),
+      btnSyncMemoTime: document.getElementById("btn-sync-memo-time"),
+      memoTextAreaWrap: document.getElementById("memo-text-area-wrap"),
+      memoTextInput: document.getElementById("memo-text-input"),
+      memoVoiceAreaWrap: document.getElementById("memo-voice-area-wrap"),
+      btnRecordToggle: document.getElementById("btn-record-toggle"),
+      recDot: document.getElementById("rec-dot"),
+      recBtnLabel: document.getElementById("rec-btn-label"),
+      recTimer: document.getElementById("rec-timer"),
+      recStatusHint: document.getElementById("rec-status-hint"),
+      voicePreviewWrap: document.getElementById("voice-preview-wrap"),
+      voicePreviewAudio: document.getElementById("voice-preview-audio"),
+      btnClearVoice: document.getElementById("btn-clear-voice"),
+      voiceMemoCaption: document.getElementById("voice-memo-caption"),
+      btnCancelMemo: document.getElementById("btn-cancel-memo"),
+      btnSubmitMemo: document.getElementById("btn-submit-memo"),
+      timelineMemoCount: document.getElementById("timeline-memo-count"),
+      timelineMemosList: document.getElementById("timeline-memos-list"),
+
+      songDescView: document.getElementById("song-desc-view"),
+      editSongDesc: document.getElementById("edit-song-desc"),
+      descEditBadge: document.getElementById("desc-edit-badge"),
+      songLyricsView: document.getElementById("song-lyrics-view"),
+      editSongLyrics: document.getElementById("edit-song-lyrics"),
+      lyricsEditBadge: document.getElementById("lyrics-edit-badge"),
+      btnCopyLyrics: document.getElementById("btn-copy-lyrics"),
+
+      commentCountBadge: document.getElementById("comment-count-badge"),
+      commentForm: document.getElementById("comment-form"),
+      commentTagSelect: document.getElementById("comment-tag-select"),
+      commentInput: document.getElementById("comment-input"),
+      commentsList: document.getElementById("comments-list"),
+
+      modalAdminLogin: document.getElementById("modal-admin-login"),
+      formAdminLogin: document.getElementById("form-admin-login"),
+      adminPinInput: document.getElementById("admin-pin-input"),
+      adminPinError: document.getElementById("admin-pin-error"),
+
+      modalProfile: document.getElementById("modal-profile"),
+      formProfile: document.getElementById("form-profile"),
+      profileNameInput: document.getElementById("profile-name-input"),
+      profileRoleInput: document.getElementById("profile-role-input"),
+
+      modalAddSong: document.getElementById("modal-add-song"),
+      formAddSong: document.getElementById("form-add-song"),
+      newSongTitle: document.getElementById("new-song-title"),
+      newSongBpm: document.getElementById("new-song-bpm"),
+      newSongKey: document.getElementById("new-song-key"),
+      newSongStatus: document.getElementById("new-song-status"),
+      newSongDesc: document.getElementById("new-song-desc"),
+
+      modalDeleteSong: document.getElementById("modal-delete-song"),
+      deleteSongTargetName: document.getElementById("delete-song-target-name"),
+      btnConfirmDeleteSong: document.getElementById("btn-confirm-delete-song"),
+
+      modalFirebaseInfo: document.getElementById("modal-firebase-info"),
+      toastContainer: document.getElementById("toast-container")
+    };
+
+    // =========================================================
+    // 5. UTILITIES
+    // =========================================================
+    function formatTime(sec) {
+      if (!Number.isFinite(sec) || sec < 0) return "00:00";
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    function formatRelativeDate(ts) {
+      if (!ts) return "방금 전";
+      const diff = Math.max(0, Date.now() - ts);
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return "방금 전";
+      if (mins < 60) return `${mins}분 전`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}시간 전`;
+      const days = Math.floor(hrs / 24);
+      return `${days}일 전`;
+    }
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function showToast(message, type = "info") {
+      const colors = {
+        success: "bg-emerald-950/95 border-emerald-500/40 text-emerald-200",
+        error: "bg-red-950/95 border-red-500/40 text-red-200",
+        info: "bg-studio-card/95 border-amber-500/40 text-amber-200"
+      };
+      const div = document.createElement("div");
+      div.className = `pointer-events-auto px-4 py-2.5 rounded-xl border text-xs font-semibold shadow-2xl transition-all duration-200 ${colors[type] || colors.info}`;
+      div.textContent = message;
+      el.toastContainer.appendChild(div);
+      setTimeout(() => {
+        div.style.opacity = "0";
+        div.style.transform = "translateY(8px)";
+        setTimeout(() => div.remove(), 220);
+      }, 2800);
+    }
+
+    function openModal(modalEl) {
+      modalEl.classList.remove("hidden");
+      modalEl.classList.add("flex");
+    }
+
+    function closeModal(modalEl) {
+      modalEl.classList.add("hidden");
+      modalEl.classList.remove("flex");
+    }
+
+    function getActiveSong() {
+      return state.songs.find((s) => s.id === state.activeSongId) || null;
+    }
+
+    // =========================================================
+    // 6. SYNTHESIZED ROCK DEMO WAV GENERATOR (Instant Playback)
+    // =========================================================
+    function generateRockDemoWavUrl(song) {
+      if (state.synthBlobUrls[song.id]) return state.synthBlobUrls[song.id];
+
+      const sampleRate = 22050;
+      const durationSec = 24;
+      const numSamples = sampleRate * durationSec;
+      const buffer = new Float32Array(numSamples);
+
+      const bpm = Math.max(80, Math.min(180, parseInt(song.bpm, 10) || 130));
+      const beatSec = 60 / bpm;
+      const eighthSec = beatSec / 2;
+      const root = song.synthRootHz || 82.41;
+      // Rock progression: I - VI - III - VII (power chords)
+      const ratios = [1, 1, 0.7937, 0.7937, 1.1892, 1.1892, 0.8909, 1.3348];
+
+      for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        const beatIdx = Math.floor(t / beatSec);
+        const eighthIdx = Math.floor(t / eighthSec);
+        const barIdx = Math.floor(beatIdx / 4);
+        const beatPos = (t % beatSec) / beatSec;
+        const eighthPos = (t % eighthSec) / eighthSec;
+
+        const chordFreq = root * ratios[barIdx % ratios.length];
+        const fifthFreq = chordFreq * 1.498;
+
+        // Distorted power-chord guitar (soft-clipped sawtooth)
+        const envGtr = Math.exp(-eighthPos * 4.5);
+        const rawGtr =
+          (2 * ((t * chordFreq) % 1) - 1) * 0.55 +
+          (2 * ((t * fifthFreq) % 1) - 1) * 0.45 +
+          (2 * ((t * chordFreq * 2) % 1) - 1) * 0.25;
+        const gtr = Math.tanh(rawGtr * 3.8) * envGtr * 0.34;
+
+        // Punchy bass
+        const bass = Math.sin(2 * Math.PI * chordFreq * t) * Math.exp(-eighthPos * 2.5) * 0.32;
+
+        // Kick on beats 0 & 2
+        let kick = 0;
+        if (beatIdx % 2 === 0 && beatPos < 0.25) {
+          const kFreq = 135 * Math.exp(-beatPos * 28) + 42;
+          kick = Math.sin(2 * Math.PI * kFreq * (beatPos * beatSec)) * Math.exp(-beatPos * 16) * 0.45;
+        }
+
+        // Snare on beats 1 & 3
+        let snare = 0;
+        if (beatIdx % 2 === 1 && beatPos < 0.22) {
+          const noise = Math.sin(i * 12.9898) * 43758.5453;
+          const rand = (noise - Math.floor(noise)) * 2 - 1;
+          snare = rand * Math.exp(-beatPos * 20) * 0.28;
+        }
+
+        // Hi-hat on every 8th
+        let hat = 0;
+        if (eighthPos < 0.08) {
+          const hNoise = Math.sin(i * 78.233) * 43758.5453;
+          const hRand = (hNoise - Math.floor(hNoise)) * 2 - 1;
+          hat = hRand * Math.exp(-eighthPos * 45) * 0.09;
+        }
+
+        // Fade out last 0.5s
+        const fade = t > durationSec - 0.5 ? Math.max(0, (durationSec - t) / 0.5) : 1;
+        buffer[i] = Math.max(-0.95, Math.min(0.95, (gtr + bass + kick + snare + hat) * fade));
+      }
+
+      // Encode 16-bit mono WAV
+      const wavBytes = new ArrayBuffer(44 + numSamples * 2);
+      const view = new DataView(wavBytes);
+      const writeStr = (off, str) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i));
+      };
+      writeStr(0, "RIFF");
+      view.setUint32(4, 36 + numSamples * 2, true);
+      writeStr(8, "WAVE");
+      writeStr(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, "data");
+      view.setUint32(40, numSamples * 2, true);
+      for (let i = 0; i < numSamples; i++) {
+        view.setInt16(44 + i * 2, Math.floor(buffer[i] * 32767), true);
+      }
+
+      const blob = new Blob([wavBytes], { type: "audio/wav" });
+      const url = URL.createObjectURL(blob);
+      state.synthBlobUrls[song.id] = url;
+      return url;
+    }
+
+    // Generate deterministic waveform bars for a song
+    function buildWaveformBars(songId, count = 96) {
+      let seed = 0;
+      for (let i = 0; i < songId.length; i++) seed = (seed * 31 + songId.charCodeAt(i)) % 9973;
+      const bars = [];
+      for (let i = 0; i < count; i++) {
+        seed = (seed * 16807) % 2147483647;
+        const norm = (seed % 1000) / 1000;
+        // Shape like an actual song (quieter intro/outro, louder middle)
+        const envelope = Math.sin((i / count) * Math.PI) * 0.55 + 0.45;
+        bars.push(Math.max(0.14, Math.min(0.98, norm * envelope + 0.12)));
+      }
+      return bars;
+    }
+
+    // =========================================================
+    // 7. LOCAL STORAGE + FIREBASE SYNC LAYER
+    // =========================================================
+    function loadLocalSongs() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) { /* ignore sandboxed localStorage error */ }
+      return JSON.parse(JSON.stringify(DEFAULT_SONGS));
+    }
+
+    function saveLocalSongs() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.songs));
+      } catch (e) { /* ignore quota/sandbox error */ }
+    }
+
+    function loadProfile() {
+      try {
+        const raw = localStorage.getItem(PROFILE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.name) state.member = parsed;
+        }
+      } catch (e) { /* ignore */ }
+      el.headerMemberName.textContent = `${state.member.name} (${state.member.role})`;
+      el.commentAuthorPreview.textContent = `${state.member.name} · ${state.member.role}`;
+    }
+
+    function saveProfile() {
+      try {
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(state.member));
+      } catch (e) { /* ignore */ }
+      el.headerMemberName.textContent = `${state.member.name} (${state.member.role})`;
+      el.commentAuthorPreview.textContent = `${state.member.name} · ${state.member.role}`;
+    }
+
+    function updateSyncUI(connected, msg) {
+      firebaseConnected = connected;
+      firebaseErrorMsg = msg || "";
+      if (connected) {
+        el.syncDot.className = "w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]";
+        el.syncLabel.textContent = "Firebase 실시간 동기화";
+        el.firebaseStatusDetail.innerHTML = `
+          <div class="text-emerald-400 font-bold">● Firebase Firestore &amp; Storage 연결됨</div>
+          <div>프로젝트 ID: <span class="font-mono text-white">invite-c47f6</span></div>
+          <div>관리자가 수정한 곡 설명, 가사, 음원, 타임라인 메모 및 댓글이 접속자들에게 실시간 반영됩니다.</div>
+        `;
+      } else {
+        el.syncDot.className = "w-2 h-2 rounded-full bg-amber-400";
+        el.syncLabel.textContent = "로컬 스튜디오 모드";
+        el.firebaseStatusDetail.innerHTML = `
+          <div class="text-amber-400 font-bold">● 로컬 모드로 동작 중 (자동 폴백)</div>
+          <div>프로젝트 ID: <span class="font-mono text-white">invite-c47f6</span></div>
+          <div class="text-gray-400">원인: ${escapeHtml(msg || "Firestore 규칙 또는 네트워크 연결 대기 중")}</div>
+          <div class="text-gray-300 pt-1">현재 브라우저에서도 모든 기능(재생, 메모, 음성 녹음, 편집)을 즉시 사용할 수 있습니다.</div>
+        `;
+      }
+    }
+
+    async function persistSong(song) {
+      saveLocalSongs();
+      if (db && firebaseConnected && fbFirestoreMod) {
+        try {
+          const { doc, setDoc } = fbFirestoreMod;
+          const cleanSong = { ...song, updatedAt: Date.now() };
+          await setDoc(doc(db, "band_songs", song.id), cleanSong);
+        } catch (err) {
+          console.warn("Firestore save failed, kept locally:", err);
+          updateSyncUI(false, err.message || "Firestore 쓰기 권한 필요");
+        }
+      }
+    }
+
+    async function removeSongRemote(songId) {
+      saveLocalSongs();
+      if (db && firebaseConnected && fbFirestoreMod) {
+        try {
+          const { doc, deleteDoc } = fbFirestoreMod;
+          await deleteDoc(doc(db, "band_songs", songId));
+        } catch (err) {
+          console.warn("Firestore delete failed:", err);
+        }
+      }
+    }
+
+    async function initFirebase() {
+      try {
+        const [appMod, analyticsMod, firestoreMod, storageMod] = await Promise.all([
+          import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
+          import("https://www.gstatic.com/firebasejs/10.12.5/firebase-analytics.js").catch(() => null),
+          import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js"),
+          import("https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js")
+        ]);
+        fbFirestoreMod = firestoreMod;
+        fbStorageMod = storageMod;
+
+        fbApp = appMod.initializeApp(firebaseConfig);
+        if (analyticsMod) {
+          try {
+            const supported = await analyticsMod.isSupported();
+            if (supported) analyticsMod.getAnalytics(fbApp);
+          } catch (_) { /* analytics optional */ }
+        }
+
+        const { getFirestore, collection, doc, setDoc, onSnapshot, query, orderBy } = firestoreMod;
+        db = getFirestore(fbApp);
+        storage = storageMod.getStorage(fbApp);
+
+        const q = query(collection(db, "band_songs"), orderBy("order", "asc"));
+        onSnapshot(
+          q,
+          async (snapshot) => {
+            updateSyncUI(true);
+            if (snapshot.empty) {
+              const seedSongs = loadLocalSongs();
+              state.songs = seedSongs;
+              if (!state.activeSongId && state.songs.length > 0) {
+                state.activeSongId = state.songs[0].id;
+              }
+              renderAll();
+              for (const s of seedSongs) {
+                try {
+                  await setDoc(doc(db, "band_songs", s.id), s);
+                } catch (_) { /* ignore seed error */ }
+              }
+              return;
+            }
+            const remoteSongs = [];
+            snapshot.forEach((docSnap) => {
+              remoteSongs.push({ id: docSnap.id, ...docSnap.data() });
+            });
+            remoteSongs.sort((a, b) => (a.order || 0) - (b.order || 0));
+            state.songs = remoteSongs;
+            saveLocalSongs();
+            if (!state.activeSongId || !state.songs.some((s) => s.id === state.activeSongId)) {
+              state.activeSongId = state.songs[0]?.id || null;
+            }
+            renderAll();
+          },
+          (err) => {
+            console.warn("Firestore onSnapshot fallback:", err);
+            updateSyncUI(false, err.code || err.message);
+          }
+        );
+      } catch (err) {
+        console.warn("Firebase init fallback:", err);
+        updateSyncUI(false, err.message || "네트워크/SDK 연결 불가");
+      }
+    }
+
+    // =========================================================
+    // 8. RENDERING FUNCTIONS
+    // =========================================================
+    function getStatusBadgeClass(status) {
+      switch (status) {
+        case "녹음 완료":
+          return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+        case "합주 테스트":
+          return "bg-sky-500/15 text-sky-400 border-sky-500/30";
+        case "편곡 진행중":
+          return "bg-amber-500/15 text-amber-400 border-amber-500/30";
+        default:
+          return "bg-purple-500/15 text-purple-300 border-purple-500/30";
+      }
+    }
+
+    function renderSidebar() {
+      el.trackCountBadge.textContent = `${state.songs.length}곡`;
+      const q = state.searchQuery.trim().toLowerCase();
+      const filtered = state.songs.filter((s) => {
+        if (!q) return true;
+        return (
+          (s.title || "").toLowerCase().includes(q) ||
+          (s.key || "").toLowerCase().includes(q) ||
+          (s.status || "").toLowerCase().includes(q)
+        );
+      });
+
+      if (filtered.length === 0) {
+        el.trackList.innerHTML = `<div class="p-4 text-center text-xs text-gray-500">검색 결과가 없습니다.</div>`;
+        return;
+      }
+
+      el.trackList.innerHTML = filtered
+        .map((song, idx) => {
+          const isActive = song.id === state.activeSongId;
+          const num = String(song.order || idx + 1).padStart(2, "0");
+          const memoCount = (song.memos || []).length;
+          const commentCount = (song.comments || []).length;
+          const hasCustomAudio = Boolean(song.audioUrl);
+
+          return `
+            <button type="button" data-select-song="${escapeHtml(song.id)}" class="w-full text-left px-3 py-2.5 rounded-xl border transition flex items-start gap-2.5 group ${
+              isActive
+                ? "bg-amber-500/15 border-amber-500/40 text-white"
+                : "bg-transparent border-transparent hover:bg-white/5 text-gray-300"
+            }">
+              <span class="font-mono text-xs font-bold mt-0.5 ${isActive ? "text-amber-400" : "text-gray-500 group-hover:text-gray-300"}">${num}</span>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-1">
+                  <span class="text-xs font-bold truncate ${isActive ? "text-white" : "text-gray-200"}">${escapeHtml(song.title)}</span>
+                  ${hasCustomAudio ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="음원 업로드됨"></span>` : ""}
+                </div>
+                <div class="flex items-center justify-between gap-2 mt-1">
+                  <span class="text-[10px] font-mono text-gray-500 truncate">${escapeHtml(song.bpm || "-")} BPM · ${escapeHtml(song.key || "-")}</span>
+                  <div class="flex items-center gap-1.5 text-[10px] text-gray-500 shrink-0">
+                    ${memoCount > 0 ? `<span class="text-amber-400/90">📌${memoCount}</span>` : ""}
+                    ${commentCount > 0 ? `<span class="text-sky-400/90">💬${commentCount}</span>` : ""}
+                  </div>
+                </div>
+              </div>
+            </button>
+          `;
+        })
+        .join("");
+
+      el.trackList.querySelectorAll("[data-select-song]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-select-song");
+          selectSong(id);
+          closeMobileSidebar();
+        });
+      });
+    }
+
+    function renderAdminModeUI() {
+      if (state.isAdmin) {
+        el.btnAdminToggle.className =
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition bg-amber-500 hover:bg-amber-400 border-amber-400 text-black shadow-lg shadow-amber-500/20";
+        el.adminToggleText.textContent = "관리자 ON";
+        el.adminLockIcon.setAttribute("data-lucide", "unlock");
+        el.adminAddTrackWrap.classList.remove("hidden");
+        el.adminSongActions.classList.remove("hidden");
+        el.adminAudioUploadBox.classList.remove("hidden");
+        el.songTitleView.classList.add("hidden");
+        el.songTitleEditWrap.classList.remove("hidden");
+        el.songDescView.classList.add("hidden");
+        el.editSongDesc.classList.remove("hidden");
+        el.descEditBadge.classList.remove("hidden");
+        el.songLyricsView.classList.add("hidden");
+        el.editSongLyrics.classList.remove("hidden");
+        el.lyricsEditBadge.classList.remove("hidden");
+      } else {
+        el.btnAdminToggle.className =
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition bg-white/5 hover:bg-white/10 border-white/10 text-gray-200";
+        el.adminToggleText.textContent = "관리자 모드";
+        el.adminLockIcon.setAttribute("data-lucide", "lock");
+        el.adminAddTrackWrap.classList.add("hidden");
+        el.adminSongActions.classList.add("hidden");
+        el.adminAudioUploadBox.classList.add("hidden");
+        el.songTitleView.classList.remove("hidden");
+        el.songTitleEditWrap.classList.add("hidden");
+        el.songDescView.classList.remove("hidden");
+        el.editSongDesc.classList.add("hidden");
+        el.descEditBadge.classList.add("hidden");
+        el.songLyricsView.classList.remove("hidden");
+        el.editSongLyrics.classList.add("hidden");
+        el.lyricsEditBadge.classList.add("hidden");
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function renderActiveSong(reloadAudio = false) {
+      const song = getActiveSong();
+      if (!song) {
+        el.emptyState.classList.remove("hidden");
+        el.songWorkspace.classList.add("hidden");
+        return;
+      }
+      el.emptyState.classList.add("hidden");
+      el.songWorkspace.classList.remove("hidden");
+
+      const num = String(song.order || 1).padStart(2, "0");
+      el.songTrackNum.textContent = `TRACK ${num}`;
+      el.songStatusBadge.textContent = song.status || "초안 데모";
+      el.songStatusBadge.className = `px-2 py-0.5 rounded-full text-[11px] font-semibold border ${getStatusBadgeClass(song.status)}`;
+      el.songMetaPills.textContent = `${song.bpm || "-"} BPM · ${song.key || "-"}`;
+
+      // View fields
+      el.songTitleView.textContent = song.title || "Untitled";
+      el.songDescView.textContent = song.description || "등록된 곡 설명이 없습니다.";
+      el.songLyricsView.textContent = song.lyrics || "등록된 가사가 없습니다.";
+
+      // Edit fields (only overwrite when switching song or not actively typing)
+      if (reloadAudio || document.activeElement !== el.editSongTitle) el.editSongTitle.value = song.title || "";
+      if (reloadAudio || document.activeElement !== el.editSongBpm) el.editSongBpm.value = song.bpm || "";
+      if (reloadAudio || document.activeElement !== el.editSongKey) el.editSongKey.value = song.key || "";
+      if (reloadAudio || document.activeElement !== el.editSongStatus) el.editSongStatus.value = song.status || "초안 데모";
+      if (reloadAudio || document.activeElement !== el.editSongDesc) el.editSongDesc.value = song.description || "";
+      if (reloadAudio || document.activeElement !== el.editSongLyrics) el.editSongLyrics.value = song.lyrics || "";
+
+      // Audio source display
+      if (song.audioUrl) {
+        el.audioSourceText.textContent = song.audioName || "업로드된 음원";
+        el.audioUploadFilename.textContent = `현재 음원: ${song.audioName || "업로드된 파일"} (새 파일 선택 시 교체됨)`;
+      } else {
+        el.audioSourceText.textContent = "스튜디오 데모 음원 (즉시 재생 가능)";
+        el.audioUploadFilename.textContent = "MP3, WAV, M4A, OGG 파일을 선택하면 즉시 플레이어에 반영됩니다.";
+      }
+
+      if (reloadAudio) {
+        el.mainAudio.pause();
+        updatePlayPauseIcons(false);
+        const src = song.audioUrl ? song.audioUrl : generateRockDemoWavUrl(song);
+        el.mainAudio.src = src;
+        el.mainAudio.playbackRate = state.playbackRate;
+        el.mainAudio.loop = state.isLooping;
+        el.mainAudio.load();
+        state.waveformBars = buildWaveformBars(song.id, 96);
+        el.timeCurrent.textContent = "00:00";
+        el.btnMemoTimePreview.textContent = "00:00";
+        el.playheadLine.style.left = "0%";
+      }
+
+      drawWaveform();
+      renderMemoPins();
+      renderTimelineMemos();
+      renderComments();
+      renderAdminModeUI();
+    }
+
+    function drawWaveform() {
+      const canvas = el.waveformCanvas;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const bars = state.waveformBars.length ? state.waveformBars : buildWaveformBars("default", 96);
+      const duration = el.mainAudio.duration || 0;
+      const progress = duration > 0 ? el.mainAudio.currentTime / duration : 0;
+
+      const gap = 2;
+      const barW = Math.max(2, (w - gap * (bars.length - 1)) / bars.length);
+
+      bars.forEach((amp, i) => {
+        const x = i * (barW + gap);
+        const barH = Math.max(6, amp * (h - 16));
+        const y = (h - barH) / 2;
+        const barPct = i / bars.length;
+
+        if (barPct <= progress) {
+          const grad = ctx.createLinearGradient(0, y, 0, y + barH);
+          grad.addColorStop(0, "#fbbf24");
+          grad.addColorStop(1, "#ef4444");
+          ctx.fillStyle = grad;
+        } else {
+          ctx.fillStyle = "rgba(156, 163, 175, 0.28)";
+        }
+
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(x, y, barW, barH, 2) : ctx.rect(x, y, barW, barH);
+        ctx.fill();
+      });
+    }
+
+    function renderMemoPins() {
+      const song = getActiveSong();
+      el.memoPinsLayer.innerHTML = "";
+      if (!song || !song.memos || song.memos.length === 0) return;
+
+      const duration = el.mainAudio.duration || 24;
+      song.memos.forEach((memo) => {
+        const pct = Math.max(0, Math.min(100, (memo.time / duration) * 100));
+        const pin = document.createElement("button");
+        pin.type = "button";
+        const isVoice = memo.type === "voice";
+        pin.className = `memo-pin absolute w-5 h-5 rounded-full flex items-center justify-center text-[10px] border-2 border-studio-bg shadow-lg cursor-pointer ${
+          isVoice ? "bg-rose-500 text-white" : "bg-amber-400 text-black"
+        }`;
+        pin.style.left = `${pct}%`;
+        pin.title = `[${formatTime(memo.time)}] ${memo.author}: ${memo.text || "음성 메모"}`;
+        pin.innerHTML = isVoice ? "🎙" : "✎";
+        pin.addEventListener("click", (e) => {
+          e.stopPropagation();
+          seekToTime(memo.time, true);
+          highlightMemoCard(memo.id);
+        });
+        el.memoPinsLayer.appendChild(pin);
+      });
+    }
+
+    function highlightMemoCard(memoId) {
+      const card = document.querySelector(`[data-memo-card="${memoId}"]`);
+      if (!card) return;
+      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      card.classList.add("ring-2", "ring-amber-400");
+      setTimeout(() => card.classList.remove("ring-2", "ring-amber-400"), 1400);
+    }
+
+    function renderTimelineMemos() {
+      const song = getActiveSong();
+      const allMemos = (song?.memos || []).slice().sort((a, b) => a.time - b.time);
+      el.timelineMemoCount.textContent = String(allMemos.length);
+
+      const filtered = allMemos.filter((m) => {
+        if (state.memoFilter === "all") return true;
+        return m.type === state.memoFilter;
+      });
+
+      if (filtered.length === 0) {
+        el.timelineMemosList.innerHTML = `
+          <div class="col-span-full py-6 text-center rounded-xl bg-studio-bg/60 border border-dashed border-white/10 text-xs text-gray-500">
+            아직 등록된 타임라인 메모가 없습니다. 재생 중 원하는 위치에서 <strong class="text-gray-300">메모 남기기</strong>를 눌러보세요.
+          </div>
+        `;
+        return;
+      }
+
+      el.timelineMemosList.innerHTML = filtered
+        .map((memo) => {
+          const isVoice = memo.type === "voice";
+          const canDelete = state.isAdmin || memo.author === state.member.name;
+          return `
+            <div data-memo-card="${escapeHtml(memo.id)}" class="rounded-xl bg-studio-card border border-white/10 p-3 space-y-2 transition">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <button type="button" data-jump-time="${memo.time}" class="px-2 py-0.5 rounded font-mono text-[11px] font-bold transition ${
+                    isVoice
+                      ? "bg-rose-500/20 text-rose-300 hover:bg-rose-500/35"
+                      : "bg-amber-500/20 text-amber-300 hover:bg-amber-500/35"
+                  }">▶ ${formatTime(memo.time)}</button>
+                  <span class="px-1.5 py-0.5 rounded bg-white/5 text-[10px] text-gray-300">${escapeHtml(memo.category || "편곡/악기")}</span>
+                  <span class="text-[11px] font-semibold text-gray-200 truncate">${escapeHtml(memo.author)}</span>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <span class="text-[10px] text-gray-500">${formatRelativeDate(memo.createdAt)}</span>
+                  ${
+                    canDelete
+                      ? `<button type="button" data-delete-memo="${escapeHtml(memo.id)}" class="text-gray-500 hover:text-red-400 p-0.5" title="메모 삭제"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>`
+                      : ""
+                  }
+                </div>
+              </div>
+              ${
+                isVoice
+                  ? `<div class="space-y-1.5">
+                      ${memo.text ? `<p class="text-xs text-gray-300">${escapeHtml(memo.text)}</p>` : ""}
+                      <audio controls src="${escapeHtml(memo.voiceUrl)}" class="w-full h-8"></audio>
+                    </div>`
+                  : `<p class="text-xs text-gray-200 leading-relaxed whitespace-pre-wrap">${escapeHtml(memo.text)}</p>`
+              }
+            </div>
+          `;
+        })
+        .join("");
+
+      el.timelineMemosList.querySelectorAll("[data-jump-time]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          seekToTime(parseFloat(btn.getAttribute("data-jump-time")), true);
+        });
+      });
+      el.timelineMemosList.querySelectorAll("[data-delete-memo]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          deleteTimelineMemo(btn.getAttribute("data-delete-memo"));
+        });
+      });
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function renderComments() {
+      const song = getActiveSong();
+      const comments = (song?.comments || []).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      el.commentCountBadge.textContent = String(comments.length);
+
+      if (comments.length === 0) {
+        el.commentsList.innerHTML = `
+          <div class="py-6 text-center rounded-xl bg-studio-bg/50 border border-dashed border-white/10 text-xs text-gray-500">
+            첫 번째 종합 제안을 남겨 멤버들과 아이디어를 나눠보세요.
+          </div>
+        `;
+        return;
+      }
+
+      el.commentsList.innerHTML = comments
+        .map((c) => {
+          const canDelete = state.isAdmin || c.author === state.member.name;
+          return `
+            <div class="rounded-xl bg-studio-card border border-white/10 p-3.5 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="text-xs font-bold text-white truncate">${escapeHtml(c.author)}</span>
+                  <span class="text-[11px] text-gray-400">${escapeHtml(c.role || "멤버")}</span>
+                  <span class="px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/25 text-[10px] font-semibold">${escapeHtml(c.tag || "일반 의견")}</span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="text-[11px] text-gray-500">${formatRelativeDate(c.createdAt)}</span>
+                  ${
+                    canDelete
+                      ? `<button type="button" data-delete-comment="${escapeHtml(c.id)}" class="text-gray-500 hover:text-red-400" title="댓글 삭제"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>`
+                      : ""
+                  }
+                </div>
+              </div>
+              <p class="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">${escapeHtml(c.text)}</p>
+              <div class="flex items-center gap-2 pt-0.5">
+                <button type="button" data-like-comment="${escapeHtml(c.id)}" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300 flex items-center gap-1 transition">
+                  <span>👍</span>
+                  <span class="font-mono">${c.likes || 0}</span>
+                </button>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      el.commentsList.querySelectorAll("[data-like-comment]").forEach((btn) => {
+        btn.addEventListener("click", () => likeComment(btn.getAttribute("data-like-comment")));
+      });
+      el.commentsList.querySelectorAll("[data-delete-comment]").forEach((btn) => {
+        btn.addEventListener("click", () => deleteComment(btn.getAttribute("data-delete-comment")));
+      });
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function renderAll() {
+      renderSidebar();
+      renderActiveSong(false);
+    }
+
+    // =========================================================
+    // 9. AUDIO PLAYER & WAVEFORM CONTROLS
+    // =========================================================
+    function updatePlayPauseIcons(isPlaying) {
+      if (isPlaying) {
+        el.iconPlay.classList.add("hidden");
+        el.iconPause.classList.remove("hidden");
+      } else {
+        el.iconPlay.classList.remove("hidden");
+        el.iconPause.classList.add("hidden");
+      }
+    }
+
+    function togglePlay() {
+      if (!el.mainAudio.src) return;
+      if (el.mainAudio.paused) {
+        el.mainAudio.play().then(() => updatePlayPauseIcons(true)).catch(() => {
+          showToast("브라우저 자동 재생이 차단되었습니다. 다시 클릭해주세요.", "info");
+        });
+      } else {
+        el.mainAudio.pause();
+        updatePlayPauseIcons(false);
+      }
+    }
+
+    function seekToTime(sec, autoPlay = false) {
+      const dur = el.mainAudio.duration || 0;
+      if (dur <= 0) return;
+      el.mainAudio.currentTime = Math.max(0, Math.min(dur, sec));
+      updateTimeUI();
+      if (autoPlay && el.mainAudio.paused) {
+        el.mainAudio.play().then(() => updatePlayPauseIcons(true)).catch(() => {});
+      }
+    }
+
+    function updateTimeUI() {
+      const cur = el.mainAudio.currentTime || 0;
+      const dur = el.mainAudio.duration || 0;
+      el.timeCurrent.textContent = formatTime(cur);
+      el.timeDuration.textContent = formatTime(dur);
+      el.btnMemoTimePreview.textContent = formatTime(cur);
+      const pct = dur > 0 ? (cur / dur) * 100 : 0;
+      el.playheadLine.style.left = `${pct}%`;
+      drawWaveform();
+    }
+
+    el.mainAudio.addEventListener("loadedmetadata", () => {
+      updateTimeUI();
+      renderMemoPins();
+    });
+    el.mainAudio.addEventListener("timeupdate", updateTimeUI);
+    el.mainAudio.addEventListener("ended", () => {
+      if (!el.mainAudio.loop) updatePlayPauseIcons(false);
+    });
+
+    el.btnPlayPause.addEventListener("click", togglePlay);
+    el.btnSkipBack.addEventListener("click", () => seekToTime((el.mainAudio.currentTime || 0) - 5));
+    el.btnSkipFwd.addEventListener("click", () => seekToTime((el.mainAudio.currentTime || 0) + 5));
+
+    const SPEEDS = [0.75, 1.0, 1.25, 1.5];
+    el.btnSpeed.addEventListener("click", () => {
+      const nextIdx = (SPEEDS.indexOf(state.playbackRate) + 1) % SPEEDS.length;
+      state.playbackRate = SPEEDS[nextIdx];
+      el.mainAudio.playbackRate = state.playbackRate;
+      el.btnSpeed.textContent = `${state.playbackRate.toFixed(2).replace(/\.00$/, ".0")}x`;
+    });
+
+    el.btnLoop.addEventListener("click", () => {
+      state.isLooping = !state.isLooping;
+      el.mainAudio.loop = state.isLooping;
+      el.btnLoop.className = state.isLooping
+        ? "p-2 rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-400 transition"
+        : "p-2 rounded-lg bg-studio-card hover:bg-studio-hover border border-white/10 text-gray-400 hover:text-white transition";
+    });
+
+    el.volumeSlider.addEventListener("input", (e) => {
+      el.mainAudio.volume = parseFloat(e.target.value);
+    });
+
+    // Waveform click & hover seek
+    function getTimeFromPointer(e) {
+      const rect = el.waveformTrack.getBoundingClientRect();
+      const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      const pct = x / rect.width;
+      const dur = el.mainAudio.duration || 0;
+      return { pct, time: pct * dur };
+    }
+
+    el.waveformTrack.addEventListener("mousemove", (e) => {
+      const { pct, time } = getTimeFromPointer(e);
+      el.hoverTooltip.classList.remove("hidden");
+      el.hoverTooltip.style.left = `${pct * 100}%`;
+      el.hoverTooltip.textContent = formatTime(time);
+    });
+    el.waveformTrack.addEventListener("mouseleave", () => {
+      el.hoverTooltip.classList.add("hidden");
+    });
+    el.waveformTrack.addEventListener("click", (e) => {
+      const { time } = getTimeFromPointer(e);
+      seekToTime(time, false);
+    });
+
+    window.addEventListener("resize", drawWaveform);
+
+    // =========================================================
+    // 10. ADMIN AUDIO UPLOAD (Firebase Storage + Local Fallback)
+    // =========================================================
+    el.btnTriggerAudioUpload.addEventListener("click", () => el.audioFileInput.click());
+
+    el.audioFileInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      const song = getActiveSong();
+      if (!file || !song) return;
+
+      const localObjUrl = URL.createObjectURL(file);
+      // Immediately play locally so admin can listen right away
+      song.audioUrl = localObjUrl;
+      song.audioName = file.name;
+      renderActiveSong(true);
+      showToast(`"${file.name}" 음원이 플레이어에 로드되었습니다.`, "success");
+
+      // Upload to Firebase Storage if connected
+      if (storage && firebaseConnected && fbStorageMod) {
+        try {
+          const { ref: storageRef, uploadBytesResumable, getDownloadURL } = fbStorageMod;
+          el.audioUploadProgressWrap.classList.remove("hidden");
+          const path = `band_audio/${song.id}_${Date.now()}_${file.name}`;
+          const fileRef = storageRef(storage, path);
+          const uploadTask = uploadBytesResumable(fileRef, file);
+
+          uploadTask.on(
+            "state_changed",
+            (snap) => {
+              const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+              el.audioUploadPercent.textContent = `${pct}%`;
+              el.audioUploadBar.style.width = `${pct}%`;
+            },
+            (err) => {
+              el.audioUploadProgressWrap.classList.add("hidden");
+              console.warn("Storage upload error:", err);
+              showToast("Firebase Storage 권한이 없어 현재 세션 로컬 음원으로 재생됩니다.", "info");
+            },
+            async () => {
+              const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              song.audioUrl = downloadUrl;
+              song.audioName = file.name;
+              await persistSong(song);
+              el.audioUploadProgressWrap.classList.add("hidden");
+              showToast("음원이 Firebase 클라우드에 저장되어 멤버들과 공유됩니다!", "success");
+            }
+          );
+        } catch (err) {
+          el.audioUploadProgressWrap.classList.add("hidden");
+          console.warn("Storage exception:", err);
+        }
+      } else {
+        saveLocalSongs();
+      }
+      el.audioFileInput.value = "";
+    });
+
+    // =========================================================
+    // 11. TIMELINE MEMO COMPOSER (TEXT & VOICE RECORDING)
+    // =========================================================
+    function setComposerTab(type) {
+      state.composerType = type;
+      if (type === "text") {
+        el.tabMemoText.className = "px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-500 text-black transition";
+        el.tabMemoVoice.className = "px-2.5 py-1 rounded-md text-xs font-semibold text-gray-400 hover:text-white transition";
+        el.memoTextAreaWrap.classList.remove("hidden");
+        el.memoVoiceAreaWrap.classList.add("hidden");
+      } else {
+        el.tabMemoVoice.className = "px-2.5 py-1 rounded-md text-xs font-semibold bg-rose-500 text-white transition";
+        el.tabMemoText.className = "px-2.5 py-1 rounded-md text-xs font-semibold text-gray-400 hover:text-white transition";
+        el.memoTextAreaWrap.classList.add("hidden");
+        el.memoVoiceAreaWrap.classList.remove("hidden");
+      }
+    }
+
+    el.tabMemoText.addEventListener("click", () => setComposerTab("text"));
+    el.tabMemoVoice.addEventListener("click", () => setComposerTab("voice"));
+
+    el.btnOpenMemoComposer.addEventListener("click", () => {
+      state.composerTime = el.mainAudio.currentTime || 0;
+      el.composerTimestampBadge.textContent = formatTime(state.composerTime);
+      el.memoComposerPanel.classList.remove("hidden");
+      el.memoComposerPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (state.composerType === "text") el.memoTextInput.focus();
+    });
+
+    el.btnSyncMemoTime.addEventListener("click", () => {
+      state.composerTime = el.mainAudio.currentTime || 0;
+      el.composerTimestampBadge.textContent = formatTime(state.composerTime);
+    });
+
+    el.btnCancelMemo.addEventListener("click", () => {
+      stopVoiceRecordingIfActive();
+      resetMemoComposer();
+      el.memoComposerPanel.classList.add("hidden");
+    });
+
+    function resetMemoComposer() {
+      el.memoTextInput.value = "";
+      el.voiceMemoCaption.value = "";
+      state.recordedVoiceDataUrl = null;
+      el.voicePreviewWrap.classList.add("hidden");
+      el.voicePreviewAudio.src = "";
+      el.recTimer.textContent = "00:00";
+    }
+
+    function stopVoiceRecordingIfActive() {
+      if (state.isRecording && state.mediaRecorder) {
+        try { state.mediaRecorder.stop(); } catch (_) {}
+      }
+      clearInterval(state.recInterval);
+      state.isRecording = false;
+      el.recBtnLabel.textContent = "녹음 시작";
+      el.recDot.classList.remove("animate-rec");
+    }
+
+    el.btnRecordToggle.addEventListener("click", async () => {
+      if (state.isRecording) {
+        stopVoiceRecordingIfActive();
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast("이 브라우저 환경에서는 마이크 녹음이 지원되지 않습니다.", "error");
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        state.recordedChunks = [];
+        const recorder = new MediaRecorder(stream);
+        state.mediaRecorder = recorder;
+
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) state.recordedChunks.push(e.data);
+        };
+        recorder.onstop = () => {
+          stream.getTracks().forEach((t) => t.stop());
+          const blob = new Blob(state.recordedChunks, { type: recorder.mimeType || "audio/webm" });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            state.recordedVoiceDataUrl = reader.result;
+            el.voicePreviewAudio.src = state.recordedVoiceDataUrl;
+            el.voicePreviewWrap.classList.remove("hidden");
+            el.recStatusHint.textContent = "녹음 완료! 미리 들어보고 타임라인에 등록하세요.";
+          };
+          reader.readAsDataURL(blob);
+        };
+
+        recorder.start();
+        state.isRecording = true;
+        state.recStartTime = Date.now();
+        el.recBtnLabel.textContent = "녹음 중지";
+        el.recDot.classList.add("animate-rec");
+        el.recStatusHint.textContent = "녹음 중입니다... 아이디어를 자유롭게 말하거나 흥얼거리세요.";
+        el.voicePreviewWrap.classList.add("hidden");
+
+        clearInterval(state.recInterval);
+        state.recInterval = setInterval(() => {
+          const sec = Math.floor((Date.now() - state.recStartTime) / 1000);
+          el.recTimer.textContent = formatTime(sec);
+          if (sec >= 60) stopVoiceRecordingIfActive();
+        }, 250);
+      } catch (err) {
+        showToast("마이크 권한이 거부되었거나 장치를 찾을 수 없습니다.", "error");
+      }
+    });
+
+    el.btnClearVoice.addEventListener("click", () => {
+      state.recordedVoiceDataUrl = null;
+      el.voicePreviewWrap.classList.add("hidden");
+      el.voicePreviewAudio.src = "";
+      el.recTimer.textContent = "00:00";
+    });
+
+    el.btnSubmitMemo.addEventListener("click", async () => {
+      const song = getActiveSong();
+      if (!song) return;
+
+      if (state.composerType === "text") {
+        const text = el.memoTextInput.value.trim();
+        if (!text) {
+          showToast("메모 내용을 입력해주세요.", "error");
+          return;
+        }
+        const newMemo = {
+          id: `m-${Date.now()}`,
+          time: Number(state.composerTime.toFixed(1)),
+          type: "text",
+          category: el.memoCategorySelect.value,
+          author: state.member.name,
+          role: state.member.role,
+          text,
+          createdAt: Date.now()
+        };
+        song.memos = song.memos || [];
+        song.memos.push(newMemo);
+      } else {
+        if (state.isRecording) {
+          showToast("먼저 녹음을 중지해주세요.", "info");
+          return;
+        }
+        if (!state.recordedVoiceDataUrl) {
+          showToast("음성 메모를 먼저 녹음해주세요.", "error");
+          return;
+        }
+        const newMemo = {
+          id: `m-${Date.now()}`,
+          time: Number(state.composerTime.toFixed(1)),
+          type: "voice",
+          category: el.memoCategorySelect.value,
+          author: state.member.name,
+          role: state.member.role,
+          text: el.voiceMemoCaption.value.trim(),
+          voiceUrl: state.recordedVoiceDataUrl,
+          createdAt: Date.now()
+        };
+        song.memos = song.memos || [];
+        song.memos.push(newMemo);
+      }
+
+      await persistSong(song);
+      resetMemoComposer();
+      el.memoComposerPanel.classList.add("hidden");
+      renderSidebar();
+      renderMemoPins();
+      renderTimelineMemos();
+      showToast(`${formatTime(state.composerTime)} 지점에 메모가 등록되었습니다.`, "success");
+    });
+
+    async function deleteTimelineMemo(memoId) {
+      const song = getActiveSong();
+      if (!song) return;
+      song.memos = (song.memos || []).filter((m) => m.id !== memoId);
+      await persistSong(song);
+      renderSidebar();
+      renderMemoPins();
+      renderTimelineMemos();
+      showToast("타임라인 메모가 삭제되었습니다.", "info");
+    }
+
+    document.querySelectorAll(".memo-filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.memoFilter = btn.getAttribute("data-memo-filter");
+        document.querySelectorAll(".memo-filter-btn").forEach((b) => {
+          b.className = "memo-filter-btn px-2 py-0.5 rounded text-gray-400 hover:text-white";
+        });
+        btn.className = "memo-filter-btn px-2 py-0.5 rounded bg-white/10 text-white font-medium";
+        renderTimelineMemos();
+      });
+    });
+
+    // =========================================================
+    // 12. GENERAL COMMENTS SECTION
+    // =========================================================
+    el.commentForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const song = getActiveSong();
+      const text = el.commentInput.value.trim();
+      if (!song || !text) return;
+
+      song.comments = song.comments || [];
+      song.comments.push({
+        id: `c-${Date.now()}`,
+        author: state.member.name,
+        role: state.member.role,
+        tag: el.commentTagSelect.value,
+        text,
+        likes: 0,
+        createdAt: Date.now()
+      });
+
+      el.commentInput.value = "";
+      await persistSong(song);
+      renderSidebar();
+      renderComments();
+      showToast("종합 제안이 등록되었습니다.", "success");
+    });
+
+    async function likeComment(commentId) {
+      const song = getActiveSong();
+      if (!song) return;
+      const target = (song.comments || []).find((c) => c.id === commentId);
+      if (!target) return;
+      target.likes = (target.likes || 0) + 1;
+      await persistSong(song);
+      renderComments();
+    }
+
+    async function deleteComment(commentId) {
+      const song = getActiveSong();
+      if (!song) return;
+      song.comments = (song.comments || []).filter((c) => c.id !== commentId);
+      await persistSong(song);
+      renderSidebar();
+      renderComments();
+      showToast("댓글이 삭제되었습니다.", "info");
+    }
+
+    // =========================================================
+    // 13. ADMIN ACTIONS (LOGIN, EDIT/SAVE, ADD SONG, DELETE SONG)
+    // =========================================================
+    el.btnAdminToggle.addEventListener("click", () => {
+      if (state.isAdmin) {
+        state.isAdmin = false;
+        renderActiveSong(false);
+        showToast("관리자 모드를 종료했습니다.", "info");
+      } else {
+        el.adminPinInput.value = "";
+        el.adminPinError.classList.add("hidden");
+        openModal(el.modalAdminLogin);
+        setTimeout(() => el.adminPinInput.focus(), 60);
+      }
+    });
+
+    el.formAdminLogin.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (el.adminPinInput.value.trim() === ADMIN_PIN) {
+        state.isAdmin = true;
+        closeModal(el.modalAdminLogin);
+        renderActiveSong(false);
+        showToast("관리자 모드로 전환되었습니다. 곡 수정·추가·삭제가 가능합니다.", "success");
+      } else {
+        el.adminPinError.classList.remove("hidden");
+      }
+    });
+
+    el.btnSaveSong.addEventListener("click", async () => {
+      const song = getActiveSong();
+      if (!song) return;
+      song.title = el.editSongTitle.value.trim() || "Untitled";
+      song.bpm = el.editSongBpm.value.trim() || "-";
+      song.key = el.editSongKey.value.trim() || "-";
+      song.status = el.editSongStatus.value;
+      song.description = el.editSongDesc.value;
+      song.lyrics = el.editSongLyrics.value;
+
+      await persistSong(song);
+      renderSidebar();
+      renderActiveSong(false);
+      showToast("곡 설명과 가사가 저장되어 접속자들에게 반영되었습니다!", "success");
+    });
+
+    el.btnOpenAddSong.addEventListener("click", () => {
+      el.formAddSong.reset();
+      el.newSongBpm.value = "130";
+      el.newSongKey.value = "E Minor";
+      openModal(el.modalAddSong);
+      setTimeout(() => el.newSongTitle.focus(), 60);
+    });
+
+    el.formAddSong.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = el.newSongTitle.value.trim();
+      if (!title) return;
+
+      const maxOrder = state.songs.reduce((acc, s) => Math.max(acc, s.order || 0), 0);
+      const newSong = {
+        id: `track-${Date.now()}`,
+        order: maxOrder + 1,
+        title,
+        bpm: el.newSongBpm.value.trim() || "130",
+        key: el.newSongKey.value.trim() || "E Minor",
+        status: el.newSongStatus.value,
+        audioUrl: "",
+        audioName: "demo_synth",
+        synthRootHz: 82.41,
+        description: el.newSongDesc.value.trim() || "새로 추가된 곡입니다. 관리자 모드에서 음원과 상세 설명을 업데이트하세요.",
+        lyrics: "[Verse 1]\n가사를 입력하세요...",
+        memos: [],
+        comments: []
+      };
+
+      state.songs.push(newSong);
+      state.activeSongId = newSong.id;
+      await persistSong(newSong);
+      closeModal(el.modalAddSong);
+      renderSidebar();
+      renderActiveSong(true);
+      showToast(`"${title}" 곡 페이지가 추가되었습니다!`, "success");
+    });
+
+    el.btnDeleteSong.addEventListener("click", () => {
+      const song = getActiveSong();
+      if (!song) return;
+      el.deleteSongTargetName.textContent = song.title;
+      openModal(el.modalDeleteSong);
+    });
+
+    el.btnConfirmDeleteSong.addEventListener("click", async () => {
+      const song = getActiveSong();
+      if (!song) return;
+      const deletedTitle = song.title;
+      const deletedId = song.id;
+      state.songs = state.songs.filter((s) => s.id !== deletedId);
+      // Re-index order cleanly
+      state.songs.forEach((s, i) => { s.order = i + 1; });
+      state.activeSongId = state.songs[0]?.id || null;
+
+      await removeSongRemote(deletedId);
+      closeModal(el.modalDeleteSong);
+      renderSidebar();
+      renderActiveSong(true);
+      showToast(`"${deletedTitle}" 곡 페이지가 삭제되었습니다.`, "info");
+    });
+
+    // =========================================================
+    // 14. NAVIGATION, PROFILE, COPY, MODALS
+    // =========================================================
+    function selectSong(songId) {
+      if (state.activeSongId === songId) return;
+      stopVoiceRecordingIfActive();
+      el.memoComposerPanel.classList.add("hidden");
+      state.activeSongId = songId;
+      renderSidebar();
+      renderActiveSong(true);
+    }
+
+    function openMobileSidebar() {
+      el.sidebar.classList.remove("-translate-x-full");
+      el.sidebarBackdrop.classList.remove("hidden");
+    }
+
+    function closeMobileSidebar() {
+      el.sidebar.classList.add("-translate-x-full");
+      el.sidebarBackdrop.classList.add("hidden");
+    }
+
+    el.btnMobileSidebar.addEventListener("click", openMobileSidebar);
+    el.btnCloseSidebar.addEventListener("click", closeMobileSidebar);
+    el.sidebarBackdrop.addEventListener("click", closeMobileSidebar);
+
+    el.trackSearchInput.addEventListener("input", (e) => {
+      state.searchQuery = e.target.value;
+      renderSidebar();
+    });
+
+    el.btnProfileModal.addEventListener("click", () => {
+      el.profileNameInput.value = state.member.name;
+      el.profileRoleInput.value = state.member.role;
+      openModal(el.modalProfile);
+    });
+
+    el.formProfile.addEventListener("submit", (e) => {
+      e.preventDefault();
+      state.member = {
+        name: el.profileNameInput.value.trim() || "밴드멤버",
+        role: el.profileRoleInput.value
+      };
+      saveProfile();
+      closeModal(el.modalProfile);
+      showToast(`${state.member.name} (${state.member.role})님으로 설정되었습니다.`, "success");
+    });
+
+    el.btnFirebaseStatus.addEventListener("click", () => openModal(el.modalFirebaseInfo));
+
+    el.btnCopyLyrics.addEventListener("click", async () => {
+      const song = getActiveSong();
+      const text = song?.lyrics || "";
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast("가사가 클립보드에 복사되었습니다.", "success");
+      } catch (_) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        showToast("가사가 클립보드에 복사되었습니다.", "success");
+      }
+    });
+
+    document.querySelectorAll("[data-close-modal]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-close-modal");
+        const modal = document.getElementById(id);
+        if (modal) closeModal(modal);
+      });
+    });
+
+    // Keyboard shortcut: Space to Play/Pause when not typing
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) {
+        e.preventDefault();
+        togglePlay();
+      }
+    });
+
+    // =========================================================
+    // 15. BOOTSTRAP
+    // =========================================================
+    loadProfile();
+    state.songs = loadLocalSongs();
+    state.activeSongId = state.songs[0]?.id || null;
+    renderSidebar();
+    renderActiveSong(true);
+    if (window.lucide) lucide.createIcons();
+    updateSyncUI(false, "Firebase 연결 시도 중...");
+    initFirebase();
+    })();
+  </script>
+</body>
+</html>
