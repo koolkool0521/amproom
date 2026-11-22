@@ -141,11 +141,12 @@
       </div>
 
       <!-- Admin Add Track Button (Visible in Admin Mode) -->
-      <div id="admin-add-track-wrap" class="hidden p-3 border-b border-white/10 bg-amber-500/5">
+      <div id="admin-add-track-wrap" class="hidden p-3 border-b border-white/10 bg-amber-500/5 space-y-2">
         <button id="btn-open-add-song" type="button" class="w-full py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-lg shadow-amber-500/15">
           <i data-lucide="plus-circle" class="w-4 h-4"></i>
           <span>새 곡 페이지 추가</span>
         </button>
+        <p class="text-[10px] text-amber-300/80 text-center">↕ 트랙을 드래그하여 순서를 바꿀 수 있습니다</p>
       </div>
 
       <!-- Track Search Filter -->
@@ -188,11 +189,15 @@
             <!-- View Title -->
             <h2 id="song-title-view" class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white truncate">Midnight Overdrive</h2>
             <!-- Admin Edit Title & Meta (Hidden in Member Mode) -->
-            <div id="song-title-edit-wrap" class="hidden grid grid-cols-1 sm:grid-cols-12 gap-2 pt-1">
-              <input id="edit-song-title" type="text" placeholder="곡 제목" class="sm:col-span-5 bg-studio-card border border-amber-500/40 rounded-lg px-3 py-1.5 text-sm font-bold text-white focus:outline-none focus:border-amber-400" />
-              <input id="edit-song-bpm" type="text" placeholder="BPM (예: 140)" class="sm:col-span-2 bg-studio-card border border-white/15 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-200 focus:outline-none focus:border-amber-400" />
-              <input id="edit-song-key" type="text" placeholder="Key (예: E Minor)" class="sm:col-span-2 bg-studio-card border border-white/15 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-200 focus:outline-none focus:border-amber-400" />
-              <select id="edit-song-status" class="sm:col-span-3 bg-studio-card border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-amber-400">
+            <div id="song-title-edit-wrap" class="hidden grid grid-cols-2 sm:grid-cols-12 gap-2 pt-1">
+              <div class="col-span-1 sm:col-span-2 flex items-center bg-studio-card border border-amber-500/40 rounded-lg px-2">
+                <span class="text-[10px] font-mono text-amber-400 shrink-0 mr-1">#</span>
+                <input id="edit-song-order" type="number" min="1" placeholder="번호" title="트랙 번호" class="w-full bg-transparent py-1.5 text-xs font-mono font-bold text-amber-300 focus:outline-none" />
+              </div>
+              <input id="edit-song-title" type="text" placeholder="곡 제목" class="col-span-2 sm:col-span-4 bg-studio-card border border-amber-500/40 rounded-lg px-3 py-1.5 text-sm font-bold text-white focus:outline-none focus:border-amber-400" />
+              <input id="edit-song-bpm" type="text" placeholder="BPM" class="col-span-1 sm:col-span-2 bg-studio-card border border-white/15 rounded-lg px-2.5 py-1.5 text-xs font-mono text-gray-200 focus:outline-none focus:border-amber-400" />
+              <input id="edit-song-key" type="text" placeholder="Key" class="col-span-1 sm:col-span-2 bg-studio-card border border-white/15 rounded-lg px-2.5 py-1.5 text-xs font-mono text-gray-200 focus:outline-none focus:border-amber-400" />
+              <select id="edit-song-status" class="col-span-1 sm:col-span-2 bg-studio-card border border-white/15 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-amber-400">
                 <option value="초안 데모">초안 데모</option>
                 <option value="편곡 진행중">편곡 진행중</option>
                 <option value="합주 테스트">합주 테스트</option>
@@ -239,7 +244,7 @@
 
             <!-- Direct Audio URL Fallback (Works even without Firebase Storage / Blaze plan) -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2.5 border-t border-white/10">
-              <input id="audio-url-input" type="url" placeholder="또는 외부 음원 링크 붙여넣기 (Dropbox, Google Drive 공유 링크, 직접 MP3 URL)" class="flex-1 bg-studio-bg border border-white/15 rounded-lg px-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-amber-400" />
+              <input id="audio-url-input" type="text" placeholder="Dropbox 공유 링크, 직접 MP3 URL, 또는 Vercel 내 /audio/곡이름.mp3 입력" class="flex-1 bg-studio-bg border border-white/15 rounded-lg px-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-amber-400" />
               <button id="btn-apply-audio-url" type="button" class="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold shrink-0 transition">링크로 음원 연결</button>
             </div>
             <div id="audio-upload-error" class="hidden rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2 text-[11px] text-red-300 leading-relaxed"></div>
@@ -572,9 +577,15 @@
         <button data-close-modal="modal-add-song" type="button" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <form id="form-add-song" class="space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-gray-300 mb-1">곡 제목 *</label>
-          <input id="new-song-title" type="text" required placeholder="예: Neon Highway" class="w-full bg-studio-bg border border-white/15 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500" />
+        <div class="grid grid-cols-4 gap-3">
+          <div class="col-span-1">
+            <label class="block text-xs font-medium text-gray-300 mb-1">트랙 번호</label>
+            <input id="new-song-order" type="number" min="1" value="1" class="w-full bg-studio-bg border border-white/15 rounded-lg px-3 py-2 text-sm font-mono text-amber-300 focus:outline-none focus:border-amber-500" />
+          </div>
+          <div class="col-span-3">
+            <label class="block text-xs font-medium text-gray-300 mb-1">곡 제목 *</label>
+            <input id="new-song-title" type="text" required placeholder="예: Neon Highway" class="w-full bg-studio-bg border border-white/15 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500" />
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -684,6 +695,8 @@ service cloud.firestore {
     let storage = null;
     let firebaseConnected = false;
     let firebaseErrorMsg = "";
+    let hasReceivedInitialSnapshot = false;
+    let draggingSongId = null;
 
     // =========================================================
     // 2. INITIAL 11-TRACK SEED DATA (Rock Band Album)
@@ -951,6 +964,7 @@ service cloud.firestore {
       songMetaPills: document.getElementById("song-meta-pills"),
       songTitleView: document.getElementById("song-title-view"),
       songTitleEditWrap: document.getElementById("song-title-edit-wrap"),
+      editSongOrder: document.getElementById("edit-song-order"),
       editSongTitle: document.getElementById("edit-song-title"),
       editSongBpm: document.getElementById("edit-song-bpm"),
       editSongKey: document.getElementById("edit-song-key"),
@@ -1042,6 +1056,7 @@ service cloud.firestore {
 
       modalAddSong: document.getElementById("modal-add-song"),
       formAddSong: document.getElementById("form-add-song"),
+      newSongOrder: document.getElementById("new-song-order"),
       newSongTitle: document.getElementById("new-song-title"),
       newSongBpm: document.getElementById("new-song-bpm"),
       newSongKey: document.getElementById("new-song-key"),
@@ -1236,9 +1251,9 @@ service cloud.firestore {
     function loadLocalSongs() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
+        if (raw !== null) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed)) return parsed;
         }
       } catch (e) { /* ignore sandboxed localStorage error */ }
       return JSON.parse(JSON.stringify(DEFAULT_SONGS));
@@ -1351,6 +1366,15 @@ service cloud.firestore {
           async (snapshot) => {
             updateSyncUI(true);
             if (snapshot.empty) {
+              if (hasReceivedInitialSnapshot) {
+                // User intentionally deleted all tracks — do not re-seed!
+                state.songs = [];
+                state.activeSongId = null;
+                saveLocalSongs();
+                renderAll();
+                return;
+              }
+              hasReceivedInitialSnapshot = true;
               const seedSongs = loadLocalSongs();
               state.songs = seedSongs;
               if (!state.activeSongId && state.songs.length > 0) {
@@ -1364,6 +1388,7 @@ service cloud.firestore {
               }
               return;
             }
+            hasReceivedInitialSnapshot = true;
             const remoteSongs = [];
             snapshot.forEach((docSnap) => {
               remoteSongs.push({ id: docSnap.id, ...docSnap.data() });
@@ -1403,7 +1428,15 @@ service cloud.firestore {
       }
     }
 
+    function getNextAvailableTrackNumber() {
+      const used = new Set(state.songs.map((s) => Number(s.order)).filter((n) => Number.isFinite(n) && n >= 1));
+      let n = 1;
+      while (used.has(n)) n++;
+      return n;
+    }
+
     function renderSidebar() {
+      state.songs.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
       el.trackCountBadge.textContent = `${state.songs.length}곡`;
       const q = state.searchQuery.trim().toLowerCase();
       const filtered = state.songs.filter((s) => {
@@ -1416,10 +1449,11 @@ service cloud.firestore {
       });
 
       if (filtered.length === 0) {
-        el.trackList.innerHTML = `<div class="p-4 text-center text-xs text-gray-500">검색 결과가 없습니다.</div>`;
+        el.trackList.innerHTML = `<div class="p-4 text-center text-xs text-gray-500">${state.songs.length === 0 ? "등록된 곡이 없습니다." : "검색 결과가 없습니다."}</div>`;
         return;
       }
 
+      const canDrag = state.isAdmin && !q;
       el.trackList.innerHTML = filtered
         .map((song, idx) => {
           const isActive = song.id === state.activeSongId;
@@ -1429,12 +1463,15 @@ service cloud.firestore {
           const hasCustomAudio = Boolean(song.audioUrl);
 
           return `
-            <button type="button" data-select-song="${escapeHtml(song.id)}" class="w-full text-left px-3 py-2.5 rounded-xl border transition flex items-start gap-2.5 group ${
+            <button type="button" ${canDrag ? 'draggable="true"' : ""} data-select-song="${escapeHtml(song.id)}" class="w-full text-left px-3 py-2.5 rounded-xl border transition flex items-start gap-2 group ${
+              canDrag ? "cursor-grab active:cursor-grabbing" : ""
+            } ${
               isActive
                 ? "bg-amber-500/15 border-amber-500/40 text-white"
                 : "bg-transparent border-transparent hover:bg-white/5 text-gray-300"
             }">
-              <span class="font-mono text-xs font-bold mt-0.5 ${isActive ? "text-amber-400" : "text-gray-500 group-hover:text-gray-300"}">${num}</span>
+              ${canDrag ? `<span class="text-gray-500 group-hover:text-amber-400 mt-0.5 select-none text-xs leading-none shrink-0" title="드래그해 순서 변경">⋮⋮</span>` : ""}
+              <span class="font-mono text-xs font-bold mt-0.5 shrink-0 ${isActive ? "text-amber-400" : "text-gray-500 group-hover:text-gray-300"}">${num}</span>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center justify-between gap-1">
                   <span class="text-xs font-bold truncate ${isActive ? "text-white" : "text-gray-200"}">${escapeHtml(song.title)}</span>
@@ -1454,11 +1491,54 @@ service cloud.firestore {
         .join("");
 
       el.trackList.querySelectorAll("[data-select-song]").forEach((btn) => {
+        const id = btn.getAttribute("data-select-song");
         btn.addEventListener("click", () => {
-          const id = btn.getAttribute("data-select-song");
           selectSong(id);
           closeMobileSidebar();
         });
+
+        if (canDrag) {
+          btn.addEventListener("dragstart", (e) => {
+            draggingSongId = id;
+            btn.classList.add("opacity-40");
+            e.dataTransfer.effectAllowed = "move";
+            try { e.dataTransfer.setData("text/plain", id); } catch (_) {}
+          });
+          btn.addEventListener("dragend", () => {
+            draggingSongId = null;
+            btn.classList.remove("opacity-40");
+            el.trackList.querySelectorAll("[data-select-song]").forEach((b) => {
+              b.classList.remove("border-t-2", "border-t-amber-400");
+            });
+          });
+          btn.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            if (draggingSongId && draggingSongId !== id) {
+              btn.classList.add("border-t-2", "border-t-amber-400");
+            }
+          });
+          btn.addEventListener("dragleave", () => {
+            btn.classList.remove("border-t-2", "border-t-amber-400");
+          });
+          btn.addEventListener("drop", async (e) => {
+            e.preventDefault();
+            btn.classList.remove("border-t-2", "border-t-amber-400");
+            const fromId = draggingSongId || e.dataTransfer.getData("text/plain");
+            if (!fromId || fromId === id) return;
+            const fromIdx = state.songs.findIndex((s) => s.id === fromId);
+            const toIdx = state.songs.findIndex((s) => s.id === id);
+            if (fromIdx < 0 || toIdx < 0) return;
+
+            const [moved] = state.songs.splice(fromIdx, 1);
+            state.songs.splice(toIdx, 0, moved);
+            state.songs.forEach((s, i) => { s.order = i + 1; });
+
+            renderSidebar();
+            renderActiveSong(false);
+            await Promise.all(state.songs.map((s) => persistSong(s)));
+            showToast("트랙 순서가 변경되어 실시간 반영되었습니다.", "success");
+          });
+        }
       });
     }
 
@@ -1521,6 +1601,7 @@ service cloud.firestore {
       el.songLyricsView.textContent = song.lyrics || "등록된 가사가 없습니다.";
 
       // Edit fields (only overwrite when switching song or not actively typing)
+      if (reloadAudio || document.activeElement !== el.editSongOrder) el.editSongOrder.value = song.order || 1;
       if (reloadAudio || document.activeElement !== el.editSongTitle) el.editSongTitle.value = song.title || "";
       if (reloadAudio || document.activeElement !== el.editSongBpm) el.editSongBpm.value = song.bpm || "";
       if (reloadAudio || document.activeElement !== el.editSongKey) el.editSongKey.value = song.key || "";
@@ -1781,8 +1862,16 @@ service cloud.firestore {
     function togglePlay() {
       if (!el.mainAudio.src) return;
       if (el.mainAudio.paused) {
-        el.mainAudio.play().then(() => updatePlayPauseIcons(true)).catch(() => {
-          showToast("브라우저 자동 재생이 차단되었습니다. 다시 클릭해주세요.", "info");
+        el.mainAudio.play().then(() => updatePlayPauseIcons(true)).catch((err) => {
+          updatePlayPauseIcons(false);
+          if (err && err.name === "NotAllowedError") {
+            showToast("브라우저가 재생을 일시 차단했습니다. 재생 버튼을 한 번 더 눌러주세요.", "info");
+          } else {
+            showToast("음원을 재생할 수 없습니다. 링크가 직접 재생 가능한 MP3/WAV 주소인지 확인해주세요.", "error");
+            showAudioUploadError(
+              "음원 로드 실패: Google Drive 공유 링크나 웹페이지 주소는 브라우저 보안상 오디오 플레이어에서 직접 재생이 차단됩니다. Dropbox 공유 링크(자동 변환 지원)나 직접 MP3 URL, 또는 Vercel 배포 폴더의 /audio/파일명.mp3 경로를 사용해주세요."
+            );
+          }
         });
       } else {
         el.mainAudio.pause();
@@ -1818,6 +1907,14 @@ service cloud.firestore {
     el.mainAudio.addEventListener("timeupdate", updateTimeUI);
     el.mainAudio.addEventListener("ended", () => {
       if (!el.mainAudio.loop) updatePlayPauseIcons(false);
+    });
+    el.mainAudio.addEventListener("error", () => {
+      const song = getActiveSong();
+      if (!song || !song.audioUrl) return;
+      updatePlayPauseIcons(false);
+      showAudioUploadError(
+        "연결된 음원 링크를 불러오지 못했습니다. (Google Drive는 외부 오디오 스트리밍을 차단하는 경우가 많습니다. Dropbox 공유 링크나 Vercel 배포 폴더 내 /audio/파일명.mp3 경로를 추천합니다.)"
+      );
     });
 
     el.btnPlayPause.addEventListener("click", togglePlay);
@@ -1884,14 +1981,29 @@ service cloud.firestore {
 
     function normalizeAudioShareUrl(rawUrl) {
       const url = rawUrl.trim();
-      // Dropbox share link -> direct raw audio
-      if (url.includes("dropbox.com")) {
-        return url.replace("www.dropbox.com", "dl.dropboxusercontent.com").replace(/[?&]dl=0/, "");
+      // Allow relative path like /audio/track01.mp3 or audio/track01.mp3 (for Vercel static files)
+      if (url.startsWith("/") || url.startsWith("./") || url.startsWith("audio/")) {
+        return url.startsWith("audio/") ? "/" + url : url;
       }
-      // Google Drive file link -> direct stream URL
+      // Dropbox share link -> preserve rlkey & force raw=1
+      if (url.includes("dropbox.com")) {
+        try {
+          const u = new URL(url);
+          u.searchParams.delete("dl");
+          u.searchParams.set("raw", "1");
+          return u.toString();
+        } catch (_) {
+          return url.replace(/[?&]dl=0/, "").concat(url.includes("?") ? "&raw=1" : "?raw=1");
+        }
+      }
+      // GitHub file page -> raw.githubusercontent.com
+      if (url.includes("github.com/") && url.includes("/blob/")) {
+        return url.replace("github.com/", "raw.githubusercontent.com/").replace("/blob/", "/");
+      }
+      // Google Drive file link -> usercontent download (note: Google often blocks direct <audio> streaming)
       const gdriveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
       if (gdriveMatch && gdriveMatch[1]) {
-        return `https://docs.google.com/uc?export=open&id=${gdriveMatch[1]}`;
+        return `https://drive.usercontent.google.com/download?id=${gdriveMatch[1]}&export=download`;
       }
       return url;
     }
@@ -2298,6 +2410,7 @@ service cloud.firestore {
     el.btnAdminToggle.addEventListener("click", () => {
       if (state.isAdmin) {
         state.isAdmin = false;
+        renderSidebar();
         renderActiveSong(false);
         showToast("관리자 모드를 종료했습니다.", "info");
       } else {
@@ -2313,8 +2426,9 @@ service cloud.firestore {
       if (el.adminPinInput.value.trim() === ADMIN_PIN) {
         state.isAdmin = true;
         closeModal(el.modalAdminLogin);
+        renderSidebar();
         renderActiveSong(false);
-        showToast("관리자 모드로 전환되었습니다. 곡 수정·추가·삭제가 가능합니다.", "success");
+        showToast("관리자 모드로 전환되었습니다. 트랙 드래그 순서 변경 및 수정이 가능합니다.", "success");
       } else {
         el.adminPinError.classList.remove("hidden");
       }
@@ -2323,6 +2437,8 @@ service cloud.firestore {
     el.btnSaveSong.addEventListener("click", async () => {
       const song = getActiveSong();
       if (!song) return;
+      const parsedOrder = parseInt(el.editSongOrder.value, 10);
+      song.order = Number.isFinite(parsedOrder) && parsedOrder >= 1 ? parsedOrder : (song.order || 1);
       song.title = el.editSongTitle.value.trim() || "Untitled";
       song.bpm = el.editSongBpm.value.trim() || "-";
       song.key = el.editSongKey.value.trim() || "-";
@@ -2330,14 +2446,16 @@ service cloud.firestore {
       song.description = el.editSongDesc.value;
       song.lyrics = el.editSongLyrics.value;
 
+      state.songs.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
       await persistSong(song);
       renderSidebar();
       renderActiveSong(false);
-      showToast("곡 설명과 가사가 저장되어 접속자들에게 반영되었습니다!", "success");
+      showToast("트랙 번호, 곡 설명, 가사가 저장되어 접속자들에게 반영되었습니다!", "success");
     });
 
     el.btnOpenAddSong.addEventListener("click", () => {
       el.formAddSong.reset();
+      el.newSongOrder.value = String(getNextAvailableTrackNumber());
       el.newSongBpm.value = "130";
       el.newSongKey.value = "E Minor";
       openModal(el.modalAddSong);
@@ -2349,10 +2467,12 @@ service cloud.firestore {
       const title = el.newSongTitle.value.trim();
       if (!title) return;
 
-      const maxOrder = state.songs.reduce((acc, s) => Math.max(acc, s.order || 0), 0);
+      const parsedOrder = parseInt(el.newSongOrder.value, 10);
+      const orderNum = Number.isFinite(parsedOrder) && parsedOrder >= 1 ? parsedOrder : getNextAvailableTrackNumber();
+
       const newSong = {
         id: `track-${Date.now()}`,
-        order: maxOrder + 1,
+        order: orderNum,
         title,
         bpm: el.newSongBpm.value.trim() || "130",
         key: el.newSongKey.value.trim() || "E Minor",
@@ -2367,12 +2487,13 @@ service cloud.firestore {
       };
 
       state.songs.push(newSong);
+      state.songs.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
       state.activeSongId = newSong.id;
       await persistSong(newSong);
       closeModal(el.modalAddSong);
       renderSidebar();
       renderActiveSong(true);
-      showToast(`"${title}" 곡 페이지가 추가되었습니다!`, "success");
+      showToast(`TRACK ${String(orderNum).padStart(2, "0")} "${title}" 곡 페이지가 추가되었습니다!`, "success");
     });
 
     el.btnDeleteSong.addEventListener("click", () => {
@@ -2388,11 +2509,12 @@ service cloud.firestore {
       const deletedTitle = song.title;
       const deletedId = song.id;
       state.songs = state.songs.filter((s) => s.id !== deletedId);
-      // Re-index order cleanly
+      // Re-index remaining tracks sequentially and sync to Firestore
       state.songs.forEach((s, i) => { s.order = i + 1; });
       state.activeSongId = state.songs[0]?.id || null;
 
       await removeSongRemote(deletedId);
+      await Promise.all(state.songs.map((s) => persistSong(s)));
       closeModal(el.modalDeleteSong);
       renderSidebar();
       renderActiveSong(true);
